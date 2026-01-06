@@ -3,6 +3,7 @@
 package services
 
 import (
+	"context"
 	"time"
 
 	"github.com/seojoonrp/bapddang-server/api/repositories"
@@ -11,9 +12,9 @@ import (
 )
 
 type ReviewService interface {
-	CreateReview(input models.ReviewInput, user models.User) (*models.Review, error)
-	UpdateReview(reviewID primitive.ObjectID, input models.ReviewInput, user models.User) (*models.Review, int, error)
-	GetMyReviewsByDay(userID primitive.ObjectID, day int) ([]models.Review, error)
+	CreateReview(ctx context.Context, input models.ReviewInput, user models.User) (*models.Review, error)
+	UpdateReview(ctx context.Context, reviewID primitive.ObjectID, input models.ReviewInput, user models.User) (*models.Review, int, error)
+	GetMyReviewsByDay(ctx context.Context, userID primitive.ObjectID, day int) ([]models.Review, error)
 }
 
 type reviewService struct {
@@ -28,7 +29,7 @@ func NewReviewService(reviewRepo repositories.ReviewRepository, foodRepo reposit
 	}
 }
 
-func (s *reviewService) CreateReview(input models.ReviewInput, user models.User) (*models.Review, error) {
+func (s *reviewService) CreateReview(ctx context.Context, input models.ReviewInput, user models.User) (*models.Review, error) {
 	newReview := models.Review{
 		ID:        primitive.NewObjectID(),
 		UserID:    user.ID,
@@ -45,7 +46,7 @@ func (s *reviewService) CreateReview(input models.ReviewInput, user models.User)
 		UpdatedAt: time.Now(),
 	}
 
-	err := s.reviewRepo.SaveReview(&newReview)
+	err := s.reviewRepo.SaveReview(ctx, &newReview)
 	if err != nil {
 		return nil, err
 	}
@@ -53,8 +54,8 @@ func (s *reviewService) CreateReview(input models.ReviewInput, user models.User)
 	return &newReview, nil
 }
 
-func (s *reviewService) UpdateReview(reviewID primitive.ObjectID, input models.ReviewInput, user models.User) (*models.Review, int, error) {
-	existingReview, err := s.reviewRepo.FindByIDAndUserID(reviewID, user.ID)
+func (s *reviewService) UpdateReview(ctx context.Context, reviewID primitive.ObjectID, input models.ReviewInput, user models.User) (*models.Review, int, error) {
+	existingReview, err := s.reviewRepo.FindByIDAndUserID(ctx, reviewID, user.ID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -68,7 +69,7 @@ func (s *reviewService) UpdateReview(reviewID primitive.ObjectID, input models.R
 	existingReview.Rating = input.Rating
 	existingReview.UpdatedAt = time.Now()
 
-	err = s.reviewRepo.UpdateReview(existingReview)
+	err = s.reviewRepo.UpdateReview(ctx, existingReview)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -76,6 +77,6 @@ func (s *reviewService) UpdateReview(reviewID primitive.ObjectID, input models.R
 	return existingReview, oldRating, nil
 }
 
-func (s *reviewService) GetMyReviewsByDay(userID primitive.ObjectID, day int) ([]models.Review, error) {
-	return s.reviewRepo.FindByUserIDAndDay(userID, day)
+func (s *reviewService) GetMyReviewsByDay(ctx context.Context, userID primitive.ObjectID, day int) ([]models.Review, error) {
+	return s.reviewRepo.FindByUserIDAndDay(ctx, userID, day)
 }

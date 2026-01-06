@@ -25,9 +25,8 @@ func NewFoodHandler(foodService services.FoodService) *FoodHandler {
 func (h *FoodHandler) GetStandardFoodByID(ctx *gin.Context) {
 	foodIDStr := ctx.Param("foodID")
 
-	food, err := h.foodService.GetStandardFoodByID(foodIDStr)
+	food, err := h.foodService.GetStandardFoodByID(ctx, foodIDStr)
 	if err != nil {
-		// 에러 추상화하기 귀찮다
 		if err == mongo.ErrNoDocuments {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Food not found"})
 			return
@@ -46,7 +45,7 @@ func (h *FoodHandler) CreateStandardFood(ctx *gin.Context) {
 		return
 	}
 
-	newFood, err := h.foodService.CreateStandardFood(input)
+	newFood, err := h.foodService.CreateStandardFood(ctx, input)
 	if err != nil {
 		if err.Error() == "food already exists" {
 			ctx.JSON(http.StatusConflict, gin.H{"error": "Food already exists"})
@@ -74,7 +73,7 @@ func (h *FoodHandler) FindOrCreateCustomFood(ctx *gin.Context) {
 	}
 	user := userCtx.(models.User)
 
-	customFood, err := h.foodService.FindOrCreateCustomFood(input, user)
+	customFood, err := h.foodService.FindOrCreateCustomFood(ctx, input, user)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find or create custom food"})
 		return
@@ -127,7 +126,7 @@ func (h *FoodHandler) ValidateFoods(ctx *gin.Context) {
 	}
 	user := userCtx.(models.User)
 
-	results, err := h.foodService.ValidateFoods(input.Names, user.ID)
+	results, err := h.foodService.ValidateFoods(ctx, input.Names, user.ID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to validate foods"})
 		return

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -18,7 +19,13 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to connect to DB: ", err)
 	}
-	defer client.Disconnect(context.TODO())
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := client.Disconnect(ctx); err != nil {
+			log.Fatal("Failed to disconnect from DB: ", err)
+		}
+	}()
 
 	db := client.Database(config.AppConfig.DBName)
 

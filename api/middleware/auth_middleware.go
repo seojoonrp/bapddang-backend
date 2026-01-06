@@ -72,7 +72,7 @@ func AuthMiddleware(userCollection *mongo.Collection) gin.HandlerFunc {
 			}
 
 			var user models.User
-			err = userCollection.FindOne(context.TODO(), primitive.M{"_id": userID}).Decode(&user)
+			err = userCollection.FindOne(ctx, primitive.M{"_id": userID}).Decode(&user)
 			if err != nil {
 				ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 				return

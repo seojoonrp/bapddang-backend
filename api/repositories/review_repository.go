@@ -12,10 +12,10 @@ import (
 )
 
 type ReviewRepository interface {
-	SaveReview(review *models.Review) error
-	UpdateReview(review *models.Review) error
-	FindByUserIDAndDay(userID primitive.ObjectID, day int) ([]models.Review, error)
-	FindByIDAndUserID(reviewID, userID primitive.ObjectID) (*models.Review, error)
+	SaveReview(ctx context.Context, review *models.Review) error
+	UpdateReview(ctx context.Context, review *models.Review) error
+	FindByUserIDAndDay(ctx context.Context, userID primitive.ObjectID, day int) ([]models.Review, error)
+	FindByIDAndUserID(ctx context.Context, reviewID, userID primitive.ObjectID) (*models.Review, error)
 }
 
 type reviewRepository struct {
@@ -26,12 +26,12 @@ func NewReviewRepository(coll *mongo.Collection) ReviewRepository {
 	return &reviewRepository{collection: coll}
 }
 
-func (r *reviewRepository) SaveReview(review *models.Review) error {
-	_, err := r.collection.InsertOne(context.TODO(), review)
+func (r *reviewRepository) SaveReview(ctx context.Context, review *models.Review) error {
+	_, err := r.collection.InsertOne(ctx, review)
 	return err
 }
 
-func (r *reviewRepository) UpdateReview(review *models.Review) error {
+func (r *reviewRepository) UpdateReview(ctx context.Context, review *models.Review) error {
 	filter := bson.M{"_id": review.ID}
 	update := bson.M{
 		"$set": bson.M{
@@ -44,32 +44,32 @@ func (r *reviewRepository) UpdateReview(review *models.Review) error {
 		},
 	}
 
-	_, err := r.collection.UpdateOne(context.TODO(), filter, update)
+	_, err := r.collection.UpdateOne(ctx, filter, update)
 	return err
 }
 
-func (r *reviewRepository) FindByUserIDAndDay(userID primitive.ObjectID, day int) ([]models.Review, error) {
+func (r *reviewRepository) FindByUserIDAndDay(ctx context.Context, userID primitive.ObjectID, day int) ([]models.Review, error) {
 	var reviews []models.Review
 
 	filter := bson.M{"user_id": userID, "day": day}
-	cursor, err := r.collection.Find(context.TODO(), filter)
+	cursor, err := r.collection.Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(context.TODO())
+	defer cursor.Close(ctx)
 
-	if err = cursor.All(context.TODO(), &reviews); err != nil {
+	if err = cursor.All(ctx, &reviews); err != nil {
 		return nil, err
 	}
 
 	return reviews, nil
 }
 
-func (r *reviewRepository) FindByIDAndUserID(reviewID, userID primitive.ObjectID) (*models.Review, error) {
+func (r *reviewRepository) FindByIDAndUserID(ctx context.Context, reviewID, userID primitive.ObjectID) (*models.Review, error) {
 	var review models.Review
 
 	filter := bson.M{"_id": reviewID, "user_id": userID}
-	err := r.collection.FindOne(context.TODO(), filter).Decode(&review)
+	err := r.collection.FindOne(ctx, filter).Decode(&review)
 	if err != nil {
 		return nil, err
 	}

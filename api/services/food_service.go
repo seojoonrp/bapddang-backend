@@ -3,6 +3,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"log"
 	"math/rand"
@@ -18,18 +19,19 @@ import (
 )
 
 type FoodService interface {
-	GetStandardFoodByID(id string) (*models.StandardFood, error)
+	GetStandardFoodByID(ctx context.Context, id string) (*models.StandardFood, error)
 	GetStandardFoodsByIDs(ids []primitive.ObjectID) ([]*models.StandardFood, error)
-	CreateStandardFood(input models.NewStandardFoodInput) (*models.StandardFood, error)
-	FindOrCreateCustomFood(input models.NewCustomFoodInput, user models.User) (*models.CustomFood, error)
+	CreateStandardFood(ctx context.Context, input models.NewStandardFoodInput) (*models.StandardFood, error)
+	FindOrCreateCustomFood(ctx context.Context, input models.NewCustomFoodInput, user models.User) (*models.CustomFood, error)
 
 	GetMainFeedFoods(foodType, speed string, foodCount int) ([]*models.StandardFood, error)
-	ValidateFoods(names []string, userID primitive.ObjectID) ([]models.ValidationResult, error)
+	ValidateFoods(ctx context.Context, names []string, userID primitive.ObjectID) ([]models.ValidationResult, error)
 
-	UpdateCreatedReviewStats(foodIDs []primitive.ObjectID, rating int) error
-	UpdateModifiedReviewStats(foodIDs []primitive.ObjectID, oldRating, newRating int) error
+	UpdateCreatedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, rating int) error
+	UpdateModifiedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, oldRating, newRating int) error
+	UpdateLikeStats(ctx context.Context, foodID primitive.ObjectID, increment int) error
+
 	SyncRatingStatsCache(foodID primitive.ObjectID, oldRating, newRating int) error
-	UpdateLikeStats(foodID primitive.ObjectID, increment int) error
 }
 
 type foodService struct {
@@ -39,12 +41,12 @@ type foodService struct {
 	cacheLock         sync.RWMutex
 }
 
-func NewFoodService(foodRepo repositories.FoodRepository) FoodService {
-	allStandardFoods, err := foodRepo.GetAllStandardFoods()
+func NewFoodService(ctx context.Context, foodRepo repositories.FoodRepository) FoodService {
+	allStandardFoods, err := foodRepo.GetAllStandardFoods(ctx)
 	if err != nil {
 		log.Fatal("FATAL: Failed to load standard food cache: ", err)
 	}
-	allCustomFoods, err := foodRepo.GetAllCustomFoods()
+	allCustomFoods, err := foodRepo.GetAllCustomFoods(ctx)
 	if err != nil {
 		log.Fatal("FATAL: Failed to load custom food cache: ", err)
 	}
@@ -60,13 +62,13 @@ func NewFoodService(foodRepo repositories.FoodRepository) FoodService {
 	}
 }
 
-func (s *foodService) GetStandardFoodByID(id string) (*models.StandardFood, error) {
+func (s *foodService) GetStandardFoodByID(ctx context.Context, id string) (*models.StandardFood, error) {
 	foodID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, errors.New("Invalid food id")
 	}
 
-	food, err := s.foodRepo.FindStandardFoodByID(foodID)
+	food, err := s.foodRepo.FindStandardFoodByID(ctx, foodID)
 	if err != nil {
 		return nil, err
 	}
@@ -94,8 +96,8 @@ func (s *foodService) GetStandardFoodsByIDs(ids []primitive.ObjectID) ([]*models
 	return results, nil
 }
 
-func (s *foodService) CreateStandardFood(input models.NewStandardFoodInput) (*models.StandardFood, error) {
-	_, err := s.foodRepo.FindStandardFoodByName(input.Name)
+func (s *foodService) CreateStandardFood(ctx context.Context, input models.NewStandardFoodInput) (*models.StandardFood, error) {
+	_, err := s.foodRepo.FindStandardFoodByName(ctx, input.Name)
 	if err == nil {
 		return nil, errors.New("food already exists")
 	}
@@ -111,7 +113,7 @@ func (s *foodService) CreateStandardFood(input models.NewStandardFoodInput) (*mo
 		ReviewCount: 0,
 		TotalRating: 0,
 	}
-	err = s.foodRepo.SaveStandardFood(newFood)
+	err = s.foodRepo.SaveStandardFood(ctx, newFood)
 	if err != nil {
 		return nil, err
 	}
@@ -123,8 +125,8 @@ func (s *foodService) CreateStandardFood(input models.NewStandardFoodInput) (*mo
 	return newFood, nil
 }
 
-func (s *foodService) FindOrCreateCustomFood(input models.NewCustomFoodInput, user models.User) (*models.CustomFood, error) {
-	existingFood, err := s.foodRepo.FindCustomFoodByName(input.Name)
+func (s *foodService) FindOrCreateCustomFood(ctx context.Context, input models.NewCustomFoodInput, user models.User) (*models.CustomFood, error) {
+	existingFood, err := s.foodRepo.FindCustomFoodByName(ctx, input.Name)
 
 	if err == mongo.ErrNoDocuments {
 		newFood := &models.CustomFood{
@@ -133,7 +135,7 @@ func (s *foodService) FindOrCreateCustomFood(input models.NewCustomFoodInput, us
 			UsingUserIDs: []primitive.ObjectID{user.ID},
 			CreatedAt:    time.Now(),
 		}
-		err := s.foodRepo.SaveCustomFood(newFood)
+		err := s.foodRepo.SaveCustomFood(ctx, newFood)
 		if err != nil {
 			return nil, err
 		}
@@ -149,7 +151,7 @@ func (s *foodService) FindOrCreateCustomFood(input models.NewCustomFoodInput, us
 		return nil, err
 	}
 
-	err = s.foodRepo.AddUserToCustomFood(existingFood.ID, user.ID)
+	err = s.foodRepo.AddUserToCustomFood(ctx, existingFood.ID, user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +224,7 @@ type matchCandidates struct {
 	Output models.ValidationOutput
 }
 
-func (s *foodService) ValidateFoods(names []string, userID primitive.ObjectID) ([]models.ValidationResult, error) {
+func (s *foodService) ValidateFoods(ctx context.Context, names []string, userID primitive.ObjectID) ([]models.ValidationResult, error) {
 	results := make([]models.ValidationResult, 0, len(names))
 
 	const similarityThreshold = 0.75
@@ -231,7 +233,7 @@ func (s *foodService) ValidateFoods(names []string, userID primitive.ObjectID) (
 	for _, name := range names {
 		result := models.ValidationResult{OriginalName: name}
 
-		standardFood, err := s.foodRepo.FindStandardFoodByName(name)
+		standardFood, err := s.foodRepo.FindStandardFoodByName(ctx, name)
 		if err == nil {
 			result.Status = "ok"
 			result.OkOutput = &models.ValidationOutput{
@@ -243,7 +245,7 @@ func (s *foodService) ValidateFoods(names []string, userID primitive.ObjectID) (
 			continue
 		}
 
-		customFood, err := s.foodRepo.FindCustomFoodByName(name)
+		customFood, err := s.foodRepo.FindCustomFoodByName(ctx, name)
 		if err == nil {
 			result.Status = "ok"
 			result.OkOutput = &models.ValidationOutput{
@@ -302,7 +304,7 @@ func (s *foodService) ValidateFoods(names []string, userID primitive.ObjectID) (
 				CreatedAt:    time.Now(),
 			}
 
-			err := s.foodRepo.SaveCustomFood(newCustomFood)
+			err := s.foodRepo.SaveCustomFood(ctx, newCustomFood)
 			if err != nil {
 				s.cacheLock.Unlock()
 				return nil, err
@@ -338,8 +340,8 @@ func (s *foodService) ValidateFoods(names []string, userID primitive.ObjectID) (
 	return results, nil
 }
 
-func (s *foodService) UpdateCreatedReviewStats(foodIDs []primitive.ObjectID, rating int) error {
-	err := s.foodRepo.UpdateCreatedReviewStats(foodIDs, rating)
+func (s *foodService) UpdateCreatedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, rating int) error {
+	err := s.foodRepo.UpdateCreatedReviewStats(ctx, foodIDs, rating)
 	if err != nil {
 		return err
 	}
@@ -357,8 +359,8 @@ func (s *foodService) UpdateCreatedReviewStats(foodIDs []primitive.ObjectID, rat
 	return nil
 }
 
-func (s *foodService) UpdateModifiedReviewStats(foodIDs []primitive.ObjectID, oldRating, newRating int) error {
-	err := s.foodRepo.UpdateModifiedReviewStats(foodIDs, oldRating, newRating)
+func (s *foodService) UpdateModifiedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, oldRating, newRating int) error {
+	err := s.foodRepo.UpdateModifiedReviewStats(ctx, foodIDs, oldRating, newRating)
 	if err != nil {
 		return err
 	}
@@ -376,12 +378,12 @@ func (s *foodService) UpdateModifiedReviewStats(foodIDs []primitive.ObjectID, ol
 	return nil
 }
 
-func (s *foodService) UpdateLikeStats(foodID primitive.ObjectID, increment int) error {
+func (s *foodService) UpdateLikeStats(ctx context.Context, foodID primitive.ObjectID, increment int) error {
 	var err error
 	if increment > 0 {
-		err = s.foodRepo.IncrementLikeCount(foodID)
+		err = s.foodRepo.IncrementLikeCount(ctx, foodID)
 	} else if increment < 0 {
-		err = s.foodRepo.DecrementLikeCount(foodID)
+		err = s.foodRepo.DecrementLikeCount(ctx, foodID)
 	}
 	if err != nil {
 		return err

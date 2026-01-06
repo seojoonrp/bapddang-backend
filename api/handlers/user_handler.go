@@ -30,7 +30,7 @@ func (h *UserHandler) CheckUsernameExists(ctx *gin.Context) {
 		return
 	}
 
-	exists, err := h.userService.CheckUsernameExists(username)
+	exists, err := h.userService.CheckUsernameExists(ctx, username)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -46,7 +46,7 @@ func (h *UserHandler) SignUp(ctx *gin.Context) {
 		return
 	}
 
-	user, err := h.userService.SignUp(input)
+	user, err := h.userService.SignUp(ctx, input)
 	if err != nil {
 		if err.Error() == "user already exists" {
 			ctx.JSON(http.StatusConflict, gin.H{"error": "User already exists"})
@@ -67,7 +67,7 @@ func (h *UserHandler) Login(ctx *gin.Context) {
 		return
 	}
 
-	token, user, err := h.userService.Login(input)
+	token, user, err := h.userService.Login(ctx, input)
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
@@ -80,53 +80,53 @@ func (h *UserHandler) Login(ctx *gin.Context) {
 	})
 }
 
-func (h *UserHandler) GoogleLogin(c *gin.Context) {
+func (h *UserHandler) GoogleLogin(ctx *gin.Context) {
 	var input struct {
 		IDToken string `json:"idToken" binding:"required"`
 	}
 
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	isNew, token, user, err := h.userService.LoginWithGoogle(input.IDToken)
+	isNew, token, user, err := h.userService.LoginWithGoogle(ctx, input.IDToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Google login failed"})
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Google login failed"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	ctx.JSON(http.StatusOK, gin.H{
 		"accessToken": token,
 		"user":        user,
 		"isNewUser":   isNew,
 	})
 }
 
-func (h *UserHandler) KakaoLogin(c *gin.Context) {
+func (h *UserHandler) KakaoLogin(ctx *gin.Context) {
 	var input struct {
 		AccessToken string `json:"accessToken" binding:"required"`
 	}
 
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	isNew, token, user, err := h.userService.LoginWithKakao(input.AccessToken)
+	isNew, token, user, err := h.userService.LoginWithKakao(ctx, input.AccessToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Kakao login failed"})
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Kakao login failed"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	ctx.JSON(http.StatusOK, gin.H{
 		"accessToken": token,
 		"user":        user,
 		"isNewUser":   isNew,
 	})
 }
 
-func (h *UserHandler) AppleLogin(c *gin.Context) {
+func (h *UserHandler) AppleLogin(ctx *gin.Context) {
 	var input struct {
 		IdentityToken string `json:"identityToken" binding:"required"`
 		FullName      struct {
@@ -135,19 +135,19 @@ func (h *UserHandler) AppleLogin(c *gin.Context) {
 		} `json:"fullName"`
 	}
 
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	isNew, token, user, err := h.userService.LoginWithApple(input.IdentityToken)
+	isNew, token, user, err := h.userService.LoginWithApple(ctx, input.IdentityToken)
 
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Apple login failed"})
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Apple login failed"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	ctx.JSON(http.StatusOK, gin.H{
 		"accessToken": token,
 		"user":        user,
 		"isNewUser":   isNew,
@@ -179,14 +179,14 @@ func (h *UserHandler) LikeFood(ctx *gin.Context) {
 		return
 	}
 
-	wasAdded, err := h.userService.LikeFood(userID, foodID)
+	wasAdded, err := h.userService.LikeFood(ctx, userID, foodID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	if wasAdded {
-		go h.foodService.UpdateLikeStats(foodID, 1)
+		go h.foodService.UpdateLikeStats(ctx, foodID, 1)
 
 		ctx.JSON(http.StatusOK, gin.H{"message": "Food liked successfully"})
 	} else {
@@ -209,14 +209,14 @@ func (h *UserHandler) UnlikeFood(ctx *gin.Context) {
 		return
 	}
 
-	wasRemoved, err := h.userService.UnlikeFood(userID, foodID)
+	wasRemoved, err := h.userService.UnlikeFood(ctx, userID, foodID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	if wasRemoved {
-		go h.foodService.UpdateLikeStats(foodID, -1)
+		go h.foodService.UpdateLikeStats(ctx, foodID, -1)
 
 		ctx.JSON(http.StatusOK, gin.H{"message": "Food unliked successfully"})
 	} else {
@@ -233,7 +233,7 @@ func (h *UserHandler) GetLikedFoods(ctx *gin.Context) {
 
 	userID := userCtx.(models.User).ID
 
-	likedFoodIDs, err := h.userService.GetLikedFoodIDs(userID)
+	likedFoodIDs, err := h.userService.GetLikedFoodIDs(ctx, userID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get liked food ids"})
 		return

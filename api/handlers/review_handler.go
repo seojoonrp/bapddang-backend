@@ -40,7 +40,7 @@ func (h *ReviewHandler) CreateReview(ctx *gin.Context) {
 	}
 	user := userCtx.(models.User)
 
-	newReview, err := h.reviewService.CreateReview(input, user)
+	newReview, err := h.reviewService.CreateReview(ctx, input, user)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to create review"})
 		return
@@ -53,7 +53,7 @@ func (h *ReviewHandler) CreateReview(ctx *gin.Context) {
 		}
 	}
 	if len(standardFoods) > 0 {
-		go h.foodService.UpdateCreatedReviewStats(standardFoods, input.Rating)
+		go h.foodService.UpdateCreatedReviewStats(ctx, standardFoods, input.Rating)
 	}
 
 	ctx.JSON(http.StatusCreated, newReview)
@@ -80,7 +80,7 @@ func (h *ReviewHandler) UpdateReview(ctx *gin.Context) {
 		return
 	}
 
-	updatedReview, oldRating, err := h.reviewService.UpdateReview(reviewID, input, user)
+	updatedReview, oldRating, err := h.reviewService.UpdateReview(ctx, reviewID, input, user)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update review"})
 		return
@@ -93,7 +93,7 @@ func (h *ReviewHandler) UpdateReview(ctx *gin.Context) {
 		}
 	}
 	if len(standardFoods) > 0 && oldRating != input.Rating {
-		go h.foodService.UpdateModifiedReviewStats(standardFoods, oldRating, input.Rating)
+		go h.foodService.UpdateModifiedReviewStats(ctx, standardFoods, oldRating, input.Rating)
 	}
 
 	ctx.JSON(http.StatusOK, updatedReview)
@@ -119,7 +119,7 @@ func (h *ReviewHandler) GetMyReviewsByDay(ctx *gin.Context) {
 		return
 	}
 
-	reviews, err := h.reviewService.GetMyReviewsByDay(user.ID, day)
+	reviews, err := h.reviewService.GetMyReviewsByDay(ctx, user.ID, day)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to fetch reviews"})
 		return

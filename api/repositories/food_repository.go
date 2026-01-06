@@ -12,20 +12,19 @@ import (
 )
 
 type FoodRepository interface {
-	FindStandardFoodByID(id primitive.ObjectID) (*models.StandardFood, error)
-	FindStandardFoodByName(name string) (*models.StandardFood, error)
-	FindCustomFoodByName(name string) (*models.CustomFood, error)
-	GetAllStandardFoods() ([]*models.StandardFood, error)
-	GetAllCustomFoods() ([]*models.CustomFood, error)
+	FindStandardFoodByID(ctx context.Context, id primitive.ObjectID) (*models.StandardFood, error)
+	FindStandardFoodByName(ctx context.Context, name string) (*models.StandardFood, error)
+	FindCustomFoodByName(ctx context.Context, name string) (*models.CustomFood, error)
+	GetAllStandardFoods(ctx context.Context) ([]*models.StandardFood, error)
+	GetAllCustomFoods(ctx context.Context) ([]*models.CustomFood, error)
+	SaveCustomFood(ctx context.Context, food *models.CustomFood) error
+	SaveStandardFood(ctx context.Context, food *models.StandardFood) error
 
-	SaveCustomFood(food *models.CustomFood) error
-	SaveStandardFood(food *models.StandardFood) error
-
-	AddUserToCustomFood(foodID, userID primitive.ObjectID) error
-	UpdateCreatedReviewStats(foodID []primitive.ObjectID, rating int) error
-	UpdateModifiedReviewStats(foodID []primitive.ObjectID, oldRating, newRating int) error
-	IncrementLikeCount(foodID primitive.ObjectID) error
-	DecrementLikeCount(foodID primitive.ObjectID) error
+	AddUserToCustomFood(ctx context.Context, foodID, userID primitive.ObjectID) error
+	UpdateCreatedReviewStats(ctx context.Context, foodID []primitive.ObjectID, rating int) error
+	UpdateModifiedReviewStats(ctx context.Context, foodID []primitive.ObjectID, oldRating, newRating int) error
+	IncrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error
+	DecrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error
 }
 
 type foodRepository struct {
@@ -40,85 +39,84 @@ func NewFoodRepository(standardColl *mongo.Collection, customColl *mongo.Collect
 	}
 }
 
-func (r *foodRepository) FindStandardFoodByID(id primitive.ObjectID) (*models.StandardFood, error) {
+func (r *foodRepository) FindStandardFoodByID(ctx context.Context, id primitive.ObjectID) (*models.StandardFood, error) {
 	var food models.StandardFood
-	err := r.standardFoodCollection.FindOne(context.TODO(), bson.M{"_id": id}).Decode(&food)
+	err := r.standardFoodCollection.FindOne(ctx, bson.M{"_id": id}).Decode(&food)
 	if err != nil {
 		return nil, err
 	}
 	return &food, nil
 }
 
-func (r *foodRepository) FindStandardFoodByName(name string) (*models.StandardFood, error) {
+func (r *foodRepository) FindStandardFoodByName(ctx context.Context, name string) (*models.StandardFood, error) {
 	var food models.StandardFood
-	err := r.standardFoodCollection.FindOne(context.TODO(), bson.M{"name": name}).Decode(&food)
+	err := r.standardFoodCollection.FindOne(ctx, bson.M{"name": name}).Decode(&food)
 	if err != nil {
 		return nil, err
 	}
 	return &food, nil
 }
 
-func (r *foodRepository) FindCustomFoodByName(name string) (*models.CustomFood, error) {
+func (r *foodRepository) FindCustomFoodByName(ctx context.Context, name string) (*models.CustomFood, error) {
 	var food models.CustomFood
-	err := r.customFoodCollection.FindOne(context.TODO(), bson.M{"name": name}).Decode(&food)
+	err := r.customFoodCollection.FindOne(ctx, bson.M{"name": name}).Decode(&food)
 	if err != nil {
 		return nil, err
 	}
 	return &food, nil
 }
 
-func (r *foodRepository) GetAllStandardFoods() ([]*models.StandardFood, error) {
+func (r *foodRepository) GetAllStandardFoods(ctx context.Context) ([]*models.StandardFood, error) {
 	var foods []*models.StandardFood
 
 	filter := bson.M{}
-	cursor, err := r.standardFoodCollection.Find(context.TODO(), filter)
+	cursor, err := r.standardFoodCollection.Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(context.TODO())
+	defer cursor.Close(ctx)
 
-	if err = cursor.All(context.TODO(), &foods); err != nil {
+	if err = cursor.All(ctx, &foods); err != nil {
 		return nil, err
 	}
 
 	return foods, nil
 }
 
-func (r *foodRepository) GetAllCustomFoods() ([]*models.CustomFood, error) {
+func (r *foodRepository) GetAllCustomFoods(ctx context.Context) ([]*models.CustomFood, error) {
 	var foods []*models.CustomFood
 
 	filter := bson.M{}
-	cursor, err := r.customFoodCollection.Find(context.TODO(), filter)
+	cursor, err := r.customFoodCollection.Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(context.TODO())
-
-	if err = cursor.All(context.TODO(), &foods); err != nil {
+	defer cursor.Close(ctx)
+	if err = cursor.All(ctx, &foods); err != nil {
 		return nil, err
 	}
 
 	return foods, nil
 }
 
-func (r *foodRepository) SaveStandardFood(food *models.StandardFood) error {
-	_, err := r.standardFoodCollection.InsertOne(context.TODO(), food)
+func (r *foodRepository) SaveStandardFood(ctx context.Context, food *models.StandardFood) error {
+	_, err := r.standardFoodCollection.InsertOne(ctx, food)
 	return err
 }
 
-func (r *foodRepository) SaveCustomFood(food *models.CustomFood) error {
-	_, err := r.customFoodCollection.InsertOne(context.TODO(), food)
+func (r *foodRepository) SaveCustomFood(ctx context.Context, food *models.CustomFood) error {
+	_, err := r.customFoodCollection.InsertOne(ctx, food)
 	return err
 }
 
-func (r *foodRepository) AddUserToCustomFood(foodID, userID primitive.ObjectID) error {
+func (r *foodRepository) AddUserToCustomFood(ctx context.Context, foodID, userID primitive.ObjectID) error {
 	filter := bson.M{"_id": foodID}
 	update := bson.M{"$addToSet": bson.M{"using_user_ids": userID}}
-	_, err := r.customFoodCollection.UpdateOne(context.TODO(), filter, update)
+	_, err := r.customFoodCollection.UpdateOne(ctx, filter, update)
 	return err
 }
 
-func (r *foodRepository) UpdateCreatedReviewStats(foodIDs []primitive.ObjectID, rating int) error {
+func (r *foodRepository) UpdateCreatedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, rating int) error {
 	if len(foodIDs) == 0 {
 		return nil
 	}
@@ -132,11 +130,11 @@ func (r *foodRepository) UpdateCreatedReviewStats(foodIDs []primitive.ObjectID, 
 	incMap["total_rating"] = rating
 
 	update := bson.M{"$inc": incMap}
-	_, err := r.standardFoodCollection.UpdateMany(context.TODO(), filter, update)
+	_, err := r.standardFoodCollection.UpdateMany(ctx, filter, update)
 	return err
 }
 
-func (r *foodRepository) UpdateModifiedReviewStats(foodIDs []primitive.ObjectID, oldRating, newRating int) error {
+func (r *foodRepository) UpdateModifiedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, oldRating, newRating int) error {
 	if len(foodIDs) == 0 {
 		return nil
 	}
@@ -156,20 +154,20 @@ func (r *foodRepository) UpdateModifiedReviewStats(foodIDs []primitive.ObjectID,
 	}
 
 	update := bson.M{"$inc": incMap}
-	_, err := r.standardFoodCollection.UpdateMany(context.TODO(), filter, update)
+	_, err := r.standardFoodCollection.UpdateMany(ctx, filter, update)
 	return err
 }
 
-func (r *foodRepository) IncrementLikeCount(foodID primitive.ObjectID) error {
+func (r *foodRepository) IncrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error {
 	filter := bson.M{"_id": foodID}
 	update := bson.M{"$inc": bson.M{"like_count": 1}}
-	_, err := r.standardFoodCollection.UpdateOne(context.TODO(), filter, update)
+	_, err := r.standardFoodCollection.UpdateOne(ctx, filter, update)
 	return err
 }
 
-func (r *foodRepository) DecrementLikeCount(foodID primitive.ObjectID) error {
+func (r *foodRepository) DecrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error {
 	filter := bson.M{"_id": foodID}
 	update := bson.M{"$inc": bson.M{"like_count": -1}}
-	_, err := r.standardFoodCollection.UpdateOne(context.TODO(), filter, update)
+	_, err := r.standardFoodCollection.UpdateOne(ctx, filter, update)
 	return err
 }

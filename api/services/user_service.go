@@ -38,16 +38,16 @@ type AppleKeys struct {
 }
 
 type UserService interface {
-	CheckUsernameExists(username string) (bool, error)
-	SignUp(input models.SignUpInput) (*models.User, error)
-	Login(input models.LoginInput) (string, *models.User, error)
-	LoginWithGoogle(idToken string) (bool, string, *models.User, error)
-	LoginWithKakao(accessToken string) (bool, string, *models.User, error)
-	LoginWithApple(identityToken string) (bool, string, *models.User, error)
+	CheckUsernameExists(ctx context.Context, username string) (bool, error)
+	SignUp(ctx context.Context, input models.SignUpInput) (*models.User, error)
+	Login(ctx context.Context, input models.LoginInput) (string, *models.User, error)
+	LoginWithGoogle(ctx context.Context, idToken string) (bool, string, *models.User, error)
+	LoginWithKakao(ctx context.Context, accessToken string) (bool, string, *models.User, error)
+	LoginWithApple(ctx context.Context, identityToken string) (bool, string, *models.User, error)
 
-	LikeFood(userID, foodID primitive.ObjectID) (bool, error)
-	UnlikeFood(userID, foodID primitive.ObjectID) (bool, error)
-	GetLikedFoodIDs(userID primitive.ObjectID) ([]primitive.ObjectID, error)
+	LikeFood(ctx context.Context, userID, foodID primitive.ObjectID) (bool, error)
+	UnlikeFood(ctx context.Context, userID, foodID primitive.ObjectID) (bool, error)
+	GetLikedFoodIDs(ctx context.Context, userID primitive.ObjectID) ([]primitive.ObjectID, error)
 }
 
 type userService struct {
@@ -59,8 +59,8 @@ func NewUserService(userRepo repositories.UserRepository, foodRepo repositories.
 	return &userService{userRepo: userRepo, foodRepo: foodRepo}
 }
 
-func (s *userService) CheckUsernameExists(username string) (bool, error) {
-	user, err := s.userRepo.FindByUsername(username)
+func (s *userService) CheckUsernameExists(ctx context.Context, username string) (bool, error) {
+	user, err := s.userRepo.FindByUsername(ctx, username)
 	if err != nil {
 		return false, err
 	}
@@ -70,13 +70,13 @@ func (s *userService) CheckUsernameExists(username string) (bool, error) {
 	return false, nil
 }
 
-func (s *userService) SignUp(input models.SignUpInput) (*models.User, error) {
+func (s *userService) SignUp(ctx context.Context, input models.SignUpInput) (*models.User, error) {
 	runes := []rune(input.Username)
 	if len(runes) < 3 || len(runes) > 15 {
 		return nil, errors.New("username must be between 3 and 15 characters")
 	}
 
-	exists, err := s.CheckUsernameExists(input.Username)
+	exists, err := s.CheckUsernameExists(ctx, input.Username)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (s *userService) SignUp(input models.SignUpInput) (*models.User, error) {
 		CreatedAt:    time.Now(),
 	}
 
-	err = s.userRepo.Save(newUser)
+	err = s.userRepo.Save(ctx, newUser)
 	if err != nil {
 		return nil, err
 	}
@@ -107,8 +107,8 @@ func (s *userService) SignUp(input models.SignUpInput) (*models.User, error) {
 	return newUser, nil
 }
 
-func (s *userService) Login(input models.LoginInput) (string, *models.User, error) {
-	user, err := s.userRepo.FindByUsername(input.Username)
+func (s *userService) Login(ctx context.Context, input models.LoginInput) (string, *models.User, error) {
+	user, err := s.userRepo.FindByUsername(ctx, input.Username)
 	if err != nil {
 		return "", nil, err // Invalid username
 	}
@@ -126,11 +126,11 @@ func (s *userService) Login(input models.LoginInput) (string, *models.User, erro
 	return token, user, nil
 }
 
-func (s *userService) loginWithSocial(provider string, socialID string, email string) (bool, string, *models.User, error) {
+func (s *userService) loginWithSocial(ctx context.Context, provider string, socialID string, email string) (bool, string, *models.User, error) {
 	targetUsername := utils.GenerateHashUsername(provider, socialID)
 	isNew := false
 
-	user, err := s.userRepo.FindByUsername(targetUsername)
+	user, err := s.userRepo.FindByUsername(ctx, targetUsername)
 	if err != nil {
 		return false, "", nil, err
 	}
@@ -150,7 +150,7 @@ func (s *userService) loginWithSocial(provider string, socialID string, email st
 			user.Email = email
 		}
 
-		if err := s.userRepo.Save(user); err != nil {
+		if err := s.userRepo.Save(ctx, user); err != nil {
 			return false, "", nil, err
 		}
 	}
@@ -159,10 +159,10 @@ func (s *userService) loginWithSocial(provider string, socialID string, email st
 	return isNew, signedToken, user, err
 }
 
-func (s *userService) LoginWithGoogle(idToken string) (bool, string, *models.User, error) {
+func (s *userService) LoginWithGoogle(ctx context.Context, idToken string) (bool, string, *models.User, error) {
 	webClientID := config.AppConfig.GoogleWebClientID
 
-	payload, err := idtoken.Validate(context.Background(), idToken, webClientID)
+	payload, err := idtoken.Validate(ctx, idToken, webClientID)
 	if err != nil {
 		return false, "", nil, errors.New("invalid Google ID token")
 	}
@@ -170,10 +170,10 @@ func (s *userService) LoginWithGoogle(idToken string) (bool, string, *models.Use
 	socialID := payload.Subject
 	email, _ := payload.Claims["email"].(string)
 
-	return s.loginWithSocial(models.LoginMethodGoogle, socialID, email)
+	return s.loginWithSocial(ctx, models.LoginMethodGoogle, socialID, email)
 }
 
-func (s *userService) LoginWithKakao(accessToken string) (bool, string, *models.User, error) {
+func (s *userService) LoginWithKakao(ctx context.Context, accessToken string) (bool, string, *models.User, error) {
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", "https://kapi.kakao.com/v2/user/me", nil)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
@@ -200,7 +200,7 @@ func (s *userService) LoginWithKakao(accessToken string) (bool, string, *models.
 	socialID := strconv.FormatInt(kakaoRes.ID, 10)
 	email := kakaoRes.KakaoAccount.Email
 
-	return s.loginWithSocial(models.LoginMethodKakao, socialID, email)
+	return s.loginWithSocial(ctx, models.LoginMethodKakao, socialID, email)
 }
 
 func (s *userService) verifyAppleToken(identityToken string, clientID string) (jwt.MapClaims, error) {
@@ -249,7 +249,7 @@ func (s *userService) verifyAppleToken(identityToken string, clientID string) (j
 	return claims, nil
 }
 
-func (s *userService) LoginWithApple(identityToken string) (bool, string, *models.User, error) {
+func (s *userService) LoginWithApple(ctx context.Context, identityToken string) (bool, string, *models.User, error) {
 	clientID := config.AppConfig.AppleBundleID
 	claims, err := s.verifyAppleToken(identityToken, clientID)
 	if err != nil {
@@ -260,11 +260,11 @@ func (s *userService) LoginWithApple(identityToken string) (bool, string, *model
 	socialID, _ := claims["sub"].(string)
 	email, _ := claims["email"].(string)
 
-	return s.loginWithSocial(models.LoginMethodApple, socialID, email)
+	return s.loginWithSocial(ctx, models.LoginMethodApple, socialID, email)
 }
 
-func (s *userService) LikeFood(userID, foodID primitive.ObjectID) (bool, error) {
-	wasAdded, err := s.userRepo.AddLikedFood(userID, foodID)
+func (s *userService) LikeFood(ctx context.Context, userID, foodID primitive.ObjectID) (bool, error) {
+	wasAdded, err := s.userRepo.AddLikedFood(ctx, userID, foodID)
 	if err != nil {
 		return false, err
 	}
@@ -272,8 +272,8 @@ func (s *userService) LikeFood(userID, foodID primitive.ObjectID) (bool, error) 
 	return wasAdded, nil
 }
 
-func (s *userService) UnlikeFood(userID, foodID primitive.ObjectID) (bool, error) {
-	wasRemoved, err := s.userRepo.RemoveLikedFood(userID, foodID)
+func (s *userService) UnlikeFood(ctx context.Context, userID, foodID primitive.ObjectID) (bool, error) {
+	wasRemoved, err := s.userRepo.RemoveLikedFood(ctx, userID, foodID)
 	if err != nil {
 		return false, err
 	}
@@ -281,6 +281,6 @@ func (s *userService) UnlikeFood(userID, foodID primitive.ObjectID) (bool, error
 	return wasRemoved, nil
 }
 
-func (s *userService) GetLikedFoodIDs(userID primitive.ObjectID) ([]primitive.ObjectID, error) {
-	return s.userRepo.GetLikedFoodIDs(userID)
+func (s *userService) GetLikedFoodIDs(ctx context.Context, userID primitive.ObjectID) ([]primitive.ObjectID, error) {
+	return s.userRepo.GetLikedFoodIDs(ctx, userID)
 }

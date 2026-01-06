@@ -3,6 +3,7 @@
 package routes
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -25,7 +26,7 @@ func SetupRoutes(router *gin.Engine, db *mongo.Database) {
 	reviewRepository := repositories.NewReviewRepository(reviewCollection)
 
 	userService := services.NewUserService(userRepository, foodRepository)
-	foodService := services.NewFoodService(foodRepository)
+	foodService := services.NewFoodService(context.Background(), foodRepository)
 	reviewService := services.NewReviewService(reviewRepository, foodRepository)
 
 	userHandler := handlers.NewUserHandler(userService, foodService)
