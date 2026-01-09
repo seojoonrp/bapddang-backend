@@ -32,10 +32,10 @@ type foodRepository struct {
 	customFoodCollection   *mongo.Collection
 }
 
-func NewFoodRepository(standardColl *mongo.Collection, customColl *mongo.Collection) FoodRepository {
+func NewFoodRepository(db *mongo.Database) FoodRepository {
 	return &foodRepository{
-		standardFoodCollection: standardColl,
-		customFoodCollection:   customColl,
+		standardFoodCollection: db.Collection("standard_foods"),
+		customFoodCollection:   db.Collection("custom_foods"),
 	}
 }
 

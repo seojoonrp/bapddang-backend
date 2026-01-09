@@ -22,8 +22,8 @@ type reviewRepository struct {
 	collection *mongo.Collection
 }
 
-func NewReviewRepository(coll *mongo.Collection) ReviewRepository {
-	return &reviewRepository{collection: coll}
+func NewReviewRepository(db *mongo.Database) ReviewRepository {
+	return &reviewRepository{collection: db.Collection("reviews")}
 }
 
 func (r *reviewRepository) SaveReview(ctx context.Context, review *models.Review) error {

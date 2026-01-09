@@ -24,8 +24,8 @@ type userRepository struct {
 	collection *mongo.Collection
 }
 
-func NewUserRepository(coll *mongo.Collection) UserRepository {
-	return &userRepository{collection: coll}
+func NewUserRepository(db *mongo.Database) UserRepository {
+	return &userRepository{collection: db.Collection("users")}
 }
 
 func (r *userRepository) FindByUsername(ctx context.Context, username string) (*models.User, error) {

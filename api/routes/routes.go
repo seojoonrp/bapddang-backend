@@ -3,35 +3,22 @@
 package routes
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/seojoonrp/bapddang-server/api/handlers"
 	"github.com/seojoonrp/bapddang-server/api/middleware"
-	"github.com/seojoonrp/bapddang-server/api/repositories"
-	"github.com/seojoonrp/bapddang-server/api/services"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func SetupRoutes(router *gin.Engine, db *mongo.Database) {
+func SetupRoutes(
+	router *gin.Engine,
+	db *mongo.Database,
+	userHandler *handlers.UserHandler,
+	foodHandler *handlers.FoodHandler,
+	reviewHandler *handlers.ReviewHandler,
+) {
 	userCollection := db.Collection("users")
-	userRepository := repositories.NewUserRepository(userCollection)
-
-	standardFoodCollection := db.Collection("standard_foods")
-	customFoodCollection := db.Collection("custom_foods")
-	foodRepository := repositories.NewFoodRepository(standardFoodCollection, customFoodCollection)
-
-	reviewCollection := db.Collection("reviews")
-	reviewRepository := repositories.NewReviewRepository(reviewCollection)
-
-	userService := services.NewUserService(userRepository, foodRepository)
-	foodService := services.NewFoodService(context.Background(), foodRepository)
-	reviewService := services.NewReviewService(reviewRepository, foodRepository)
-
-	userHandler := handlers.NewUserHandler(userService, foodService)
-	foodHandler := handlers.NewFoodHandler(foodService)
-	reviewHandler := handlers.NewReviewHandler(reviewService, foodService)
 
 	apiV1 := router.Group("/api/v1")
 	{
