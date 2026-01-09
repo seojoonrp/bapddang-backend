@@ -9,7 +9,6 @@ import (
 	"github.com/seojoonrp/bapddang-server/api/services"
 	"github.com/seojoonrp/bapddang-server/apperr"
 	"github.com/seojoonrp/bapddang-server/models"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type UserHandler struct {
@@ -158,90 +157,6 @@ func (h *UserHandler) GetMe(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, userCtx)
-}
-
-func (h *UserHandler) LikeFood(ctx *gin.Context) {
-	userCtx, exists := ctx.Get("currentUser")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
-		return
-	}
-	userID := userCtx.(models.User).ID
-
-	foodIDHex := ctx.Param("foodID")
-	foodID, err := primitive.ObjectIDFromHex(foodIDHex)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid food ID format"})
-		return
-	}
-
-	wasAdded, err := h.userService.LikeFood(ctx, userID, foodID)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if wasAdded {
-		go h.foodService.UpdateLikeStats(ctx, foodID, 1)
-
-		ctx.JSON(http.StatusOK, gin.H{"message": "Food liked successfully"})
-	} else {
-		ctx.JSON(http.StatusOK, gin.H{"message": "Food is already liked"})
-	}
-}
-
-func (h *UserHandler) UnlikeFood(ctx *gin.Context) {
-	userCtx, exists := ctx.Get("currentUser")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
-		return
-	}
-	userID := userCtx.(models.User).ID
-
-	foodIDHex := ctx.Param("foodID")
-	foodID, err := primitive.ObjectIDFromHex(foodIDHex)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid food ID format"})
-		return
-	}
-
-	wasRemoved, err := h.userService.UnlikeFood(ctx, userID, foodID)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if wasRemoved {
-		go h.foodService.UpdateLikeStats(ctx, foodID, -1)
-
-		ctx.JSON(http.StatusOK, gin.H{"message": "Food unliked successfully"})
-	} else {
-		ctx.JSON(http.StatusOK, gin.H{"message": "Food was not liked"})
-	}
-}
-
-func (h *UserHandler) GetLikedFoods(ctx *gin.Context) {
-	userCtx, exists := ctx.Get("currentUser")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
-		return
-	}
-
-	userID := userCtx.(models.User).ID
-
-	likedFoodIDs, err := h.userService.GetLikedFoodIDs(ctx, userID)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get liked food ids"})
-		return
-	}
-
-	foods, err := h.foodService.GetStandardFoodsByIDs(likedFoodIDs)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch liked foods from ids"})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{"likedFoods": foods})
 }
 
 func (h *UserHandler) SyncUserDay(ctx *gin.Context) {

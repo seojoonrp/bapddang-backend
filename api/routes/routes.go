@@ -17,6 +17,7 @@ func SetupRoutes(
 	userHandler *handlers.UserHandler,
 	foodHandler *handlers.FoodHandler,
 	reviewHandler *handlers.ReviewHandler,
+	likeHandler *handlers.LikeHandler,
 ) {
 	apiV1 := router.Group("/api/v1")
 	{
@@ -41,12 +42,11 @@ func SetupRoutes(
 		{
 			protected.GET("/auth/me", userHandler.GetMe)
 
-			protected.GET("/liked-foods", userHandler.GetLikedFoods)
+			protected.GET("/liked-foods", likeHandler.GetLikedFoods)
 
-			protected.POST("/foods/:foodID/like", userHandler.LikeFood)
-			protected.DELETE("/foods/:foodID/like", userHandler.UnlikeFood)
+			protected.POST("/foods/:foodID/like", likeHandler.LikeFood)
+			protected.DELETE("/foods/:foodID/like", likeHandler.UnlikeFood)
 			protected.POST("/custom-foods", foodHandler.FindOrCreateCustomFood)
-			protected.POST("/foods/validate", foodHandler.ValidateFoods)
 
 			protected.POST("/reviews", reviewHandler.CreateReview)
 			protected.GET("/reviews/me", reviewHandler.GetMyReviewsByDay)

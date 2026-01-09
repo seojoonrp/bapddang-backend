@@ -111,26 +111,3 @@ func (h *FoodHandler) GetMainFeedFoods(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, selectedFoods)
 }
-
-func (h *FoodHandler) ValidateFoods(ctx *gin.Context) {
-	var input models.ValidateFoodsInput
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
-		return
-	}
-
-	userCtx, exists := ctx.Get("currentUser")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
-		return
-	}
-	user := userCtx.(models.User)
-
-	results, err := h.foodService.ValidateFoods(ctx, input.Names, user.ID)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to validate foods"})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{"results": results})
-}

@@ -8,6 +8,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/seojoonrp/bapddang-server/api/handlers"
+	"github.com/seojoonrp/bapddang-server/api/middleware"
 	"github.com/seojoonrp/bapddang-server/api/repositories"
 	"github.com/seojoonrp/bapddang-server/api/routes"
 	"github.com/seojoonrp/bapddang-server/api/services"
@@ -35,20 +36,24 @@ func main() {
 	userRepository := repositories.NewUserRepository(db)
 	foodRepository := repositories.NewFoodRepository(db)
 	reviewRepository := repositories.NewReviewRepository(db)
+	likeRepository := repositories.NewLikeRepository(db)
 
 	userService := services.NewUserService(userRepository, foodRepository)
 	foodService := services.NewFoodService(context.Background(), foodRepository)
 	reviewService := services.NewReviewService(reviewRepository, foodRepository)
+	likeService := services.NewLikeService(likeRepository, foodRepository)
 
 	userHandler := handlers.NewUserHandler(userService, foodService)
 	foodHandler := handlers.NewFoodHandler(foodService)
 	reviewHandler := handlers.NewReviewHandler(reviewService, foodService)
+	likeHandler := handlers.NewLikeHandler(likeService)
 
 	router := gin.Default()
-	router.SetTrustedProxies(nil)
 	router.Use(cors.Default())
+	router.Use(middleware.ErrorHandler())
+	router.SetTrustedProxies(nil)
 
-	routes.SetupRoutes(router, db, userHandler, foodHandler, reviewHandler)
+	routes.SetupRoutes(router, db, userHandler, foodHandler, reviewHandler, likeHandler)
 
 	port := config.AppConfig.Port
 	log.Println("Server started on port " + port + ".")

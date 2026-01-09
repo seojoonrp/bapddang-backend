@@ -4,6 +4,7 @@ package repositories
 
 import (
 	"context"
+	"errors"
 
 	"github.com/seojoonrp/bapddang-server/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -12,17 +13,21 @@ import (
 )
 
 type FoodRepository interface {
-	FindStandardFoodByID(ctx context.Context, id primitive.ObjectID) (*models.StandardFood, error)
-	FindStandardFoodByName(ctx context.Context, name string) (*models.StandardFood, error)
-	FindCustomFoodByName(ctx context.Context, name string) (*models.CustomFood, error)
-	GetAllStandardFoods(ctx context.Context) ([]*models.StandardFood, error)
-	GetAllCustomFoods(ctx context.Context) ([]*models.CustomFood, error)
-	SaveCustomFood(ctx context.Context, food *models.CustomFood) error
-	SaveStandardFood(ctx context.Context, food *models.StandardFood) error
+	FindStandardByID(ctx context.Context, id primitive.ObjectID) (*models.StandardFood, error)
+	FindStandardByIDs(ctx context.Context, ids []primitive.ObjectID) ([]*models.StandardFood, error)
+	FindStandardByName(ctx context.Context, name string) (*models.StandardFood, error)
+	FindCustomByName(ctx context.Context, name string) (*models.CustomFood, error)
+
+	CreateStandard(ctx context.Context, food *models.StandardFood) error
+	CreateCustorm(ctx context.Context, food *models.CustomFood) error
 
 	AddUserToCustomFood(ctx context.Context, foodID, userID primitive.ObjectID) error
+
+	GetRandomStandard(ctx context.Context, speed string, count int) ([]*models.StandardFood, error)
+
 	UpdateCreatedReviewStats(ctx context.Context, foodID []primitive.ObjectID, rating int) error
 	UpdateModifiedReviewStats(ctx context.Context, foodID []primitive.ObjectID, oldRating, newRating int) error
+
 	IncrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error
 	DecrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error
 }
@@ -39,72 +44,67 @@ func NewFoodRepository(db *mongo.Database) FoodRepository {
 	}
 }
 
-func (r *foodRepository) FindStandardFoodByID(ctx context.Context, id primitive.ObjectID) (*models.StandardFood, error) {
+func (r *foodRepository) FindStandardByID(ctx context.Context, id primitive.ObjectID) (*models.StandardFood, error) {
 	var food models.StandardFood
 	err := r.standardFoodCollection.FindOne(ctx, bson.M{"_id": id}).Decode(&food)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &food, nil
 }
 
-func (r *foodRepository) FindStandardFoodByName(ctx context.Context, name string) (*models.StandardFood, error) {
+func (r *foodRepository) FindStandardByIDs(ctx context.Context, ids []primitive.ObjectID) ([]*models.StandardFood, error) {
+	if len(ids) == 0 {
+		return []*models.StandardFood{}, nil
+	}
+
+	cursor, err := r.standardFoodCollection.Find(ctx, bson.M{"_id": bson.M{"$in": ids}})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var foods []*models.StandardFood
+	if err := cursor.All(ctx, &foods); err != nil {
+		return nil, err
+	}
+
+	return foods, nil
+}
+
+func (r *foodRepository) FindStandardByName(ctx context.Context, name string) (*models.StandardFood, error) {
 	var food models.StandardFood
 	err := r.standardFoodCollection.FindOne(ctx, bson.M{"name": name}).Decode(&food)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &food, nil
 }
 
-func (r *foodRepository) FindCustomFoodByName(ctx context.Context, name string) (*models.CustomFood, error) {
+func (r *foodRepository) FindCustomByName(ctx context.Context, name string) (*models.CustomFood, error) {
 	var food models.CustomFood
 	err := r.customFoodCollection.FindOne(ctx, bson.M{"name": name}).Decode(&food)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &food, nil
 }
 
-func (r *foodRepository) GetAllStandardFoods(ctx context.Context) ([]*models.StandardFood, error) {
-	var foods []*models.StandardFood
-
-	filter := bson.M{}
-	cursor, err := r.standardFoodCollection.Find(ctx, filter)
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	if err = cursor.All(ctx, &foods); err != nil {
-		return nil, err
-	}
-
-	return foods, nil
-}
-
-func (r *foodRepository) GetAllCustomFoods(ctx context.Context) ([]*models.CustomFood, error) {
-	var foods []*models.CustomFood
-
-	filter := bson.M{}
-	cursor, err := r.customFoodCollection.Find(ctx, filter)
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-	if err = cursor.All(ctx, &foods); err != nil {
-		return nil, err
-	}
-
-	return foods, nil
-}
-
-func (r *foodRepository) SaveStandardFood(ctx context.Context, food *models.StandardFood) error {
+func (r *foodRepository) CreateStandard(ctx context.Context, food *models.StandardFood) error {
 	_, err := r.standardFoodCollection.InsertOne(ctx, food)
 	return err
 }
 
-func (r *foodRepository) SaveCustomFood(ctx context.Context, food *models.CustomFood) error {
+func (r *foodRepository) CreateCustorm(ctx context.Context, food *models.CustomFood) error {
 	_, err := r.customFoodCollection.InsertOne(ctx, food)
 	return err
 }
@@ -114,6 +114,34 @@ func (r *foodRepository) AddUserToCustomFood(ctx context.Context, foodID, userID
 	update := bson.M{"$addToSet": bson.M{"using_user_ids": userID}}
 	_, err := r.customFoodCollection.UpdateOne(ctx, filter, update)
 	return err
+}
+
+func (r *foodRepository) GetRandomStandard(ctx context.Context, speed string, count int) ([]*models.StandardFood, error) {
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"speed": speed}}},
+		{{Key: "$sample", Value: bson.M{"size": count}}},
+	}
+
+	cursor, err := r.standardFoodCollection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var foods []*models.StandardFood
+	for cursor.Next(ctx) {
+		var food models.StandardFood
+		if err := cursor.Decode(&food); err != nil {
+			return nil, err
+		}
+		foods = append(foods, &food)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return foods, nil
 }
 
 func (r *foodRepository) UpdateCreatedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, rating int) error {
@@ -159,15 +187,31 @@ func (r *foodRepository) UpdateModifiedReviewStats(ctx context.Context, foodIDs 
 }
 
 func (r *foodRepository) IncrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error {
-	filter := bson.M{"_id": foodID}
-	update := bson.M{"$inc": bson.M{"like_count": 1}}
-	_, err := r.standardFoodCollection.UpdateOne(ctx, filter, update)
-	return err
+	result, err := r.standardFoodCollection.UpdateOne(
+		ctx,
+		bson.M{"_id": foodID},
+		bson.M{"$inc": bson.M{"like_count": 1}},
+	)
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return errors.New("food not found")
+	}
+	return nil
 }
 
 func (r *foodRepository) DecrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error {
-	filter := bson.M{"_id": foodID}
-	update := bson.M{"$inc": bson.M{"like_count": -1}}
-	_, err := r.standardFoodCollection.UpdateOne(ctx, filter, update)
-	return err
+	result, err := r.standardFoodCollection.UpdateOne(
+		ctx,
+		bson.M{"_id": foodID, "like_count": bson.M{"$gt": 0}},
+		bson.M{"$inc": bson.M{"like_count": -1}},
+	)
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return errors.New("food not found or like count is already zero")
+	}
+	return nil
 }
