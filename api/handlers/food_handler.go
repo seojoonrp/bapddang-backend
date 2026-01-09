@@ -8,8 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/seojoonrp/bapddang-server/api/services"
+	"github.com/seojoonrp/bapddang-server/apperr"
 	"github.com/seojoonrp/bapddang-server/models"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type FoodHandler struct {
@@ -22,92 +22,71 @@ func NewFoodHandler(foodService services.FoodService) *FoodHandler {
 	}
 }
 
-func (h *FoodHandler) GetStandardFoodByID(ctx *gin.Context) {
-	foodIDStr := ctx.Param("foodID")
+func (h *FoodHandler) GetStandardFoodByID(c *gin.Context) {
+	foodID := c.Param("foodID")
 
-	food, err := h.foodService.GetStandardFoodByID(ctx, foodIDStr)
+	food, err := h.foodService.GetStandardByID(c, foodID)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Food not found"})
-			return
-		}
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid food ID"})
+		c.Error(err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, food)
+	c.JSON(http.StatusOK, gin.H{"standard_food": food})
 }
 
-func (h *FoodHandler) CreateStandardFood(ctx *gin.Context) {
-	var input models.CreateStandardFoodRequest
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+func (h *FoodHandler) CreateStandardFood(c *gin.Context) {
+	var req models.CreateStandardFoodRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(apperr.BadRequest("invalid request body", err))
 		return
 	}
 
-	newFood, err := h.foodService.CreateStandardFood(ctx, input)
+	newFood, err := h.foodService.CreateStandard(c, req)
 	if err != nil {
-		if err.Error() == "food already exists" {
-			ctx.JSON(http.StatusConflict, gin.H{"error": "Food already exists"})
-			return
-		}
-
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create food"})
+		c.Error(err)
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, newFood)
+	c.JSON(http.StatusCreated, gin.H{"standard_food": newFood})
 }
 
-func (h *FoodHandler) FindOrCreateCustomFood(ctx *gin.Context) {
-	var input models.CreateCustomFoodRequest
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+func (h *FoodHandler) FindOrCreateCustomFood(c *gin.Context) {
+	var req models.CreateCustomFoodRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(apperr.BadRequest("invalid request body", err))
 		return
 	}
 
-	userCtx, exists := ctx.Get("currentUser")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
-		return
-	}
-	user := userCtx.(models.User)
-
-	customFood, err := h.foodService.FindOrCreateCustomFood(ctx, input, user)
+	userID, err := GetUserID(c)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find or create custom food"})
+		c.Error(err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, customFood)
+	newFood, err := h.foodService.FindOrCreateCustom(c, req, userID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"custom_food": newFood})
 }
 
-func (h *FoodHandler) GetMainFeedFoods(ctx *gin.Context) {
-	foodType := ctx.Query("type")
-	if foodType != "meal" && foodType != "dessert" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid food type"})
-		return
-	}
-	speed := ctx.Query("speed")
-	if speed != "fast" && speed != "slow" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid speed"})
-		return
-	}
-	foodCountStr := ctx.Query("count")
-	if foodCountStr == "" {
-		foodCountStr = "10"
-	}
+func (h *FoodHandler) GetMainFeedFoods(c *gin.Context) {
+	speed := c.Query("speed")
+
+	foodCountStr := c.Query("count")
 	foodCount, err := strconv.Atoi(foodCountStr)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid count"})
+		c.Error(apperr.BadRequest("invalid food count", err))
 		return
 	}
 
-	selectedFoods, err := h.foodService.GetMainFeedFoods(foodType, speed, foodCount)
+	selectedFoods, err := h.foodService.GetMainFeedFoods(speed, foodCount)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get main feed foods"})
+		c.Error(err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, selectedFoods)
+	c.JSON(http.StatusOK, gin.H{"foods": selectedFoods})
 }

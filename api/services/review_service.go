@@ -67,7 +67,7 @@ func (s *reviewService) CreateReview(ctx context.Context, req models.CreateRevie
 
 	var standardFoodIDs []primitive.ObjectID
 	for _, foodItem := range newReview.Foods {
-		if foodItem.FoodType == "standard" {
+		if foodItem.FoodType == models.FoodTypeStandard {
 			foodID, err := primitive.ObjectIDFromHex(foodItem.FoodID)
 			if err != nil {
 				continue
@@ -131,7 +131,7 @@ func (s *reviewService) UpdateReview(ctx context.Context, reviewID string, userI
 
 	var standardFoodIDs []primitive.ObjectID
 	for _, foodItem := range review.Foods {
-		if foodItem.FoodType == "standard" {
+		if foodItem.FoodType == models.FoodTypeStandard {
 			foodID, err := primitive.ObjectIDFromHex(foodItem.FoodID)
 			if err != nil {
 				continue

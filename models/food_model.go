@@ -8,18 +8,25 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+const (
+	FoodTypeStandard = "standard"
+	FoodTypeCustom   = "custom"
+)
+
+const (
+	SpeedFast = "fast"
+	SpeedSlow = "slow"
+)
+
 type StandardFood struct {
-	ID       primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Name     string             `bson:"name" json:"name" binding:"required"`
-	ImageURL string             `bson:"image_url" json:"imageURL" binding:"required"`
-
-	Speed      string   `bson:"speed" json:"speed" binding:"required"`
-	Type       string   `bson:"type" json:"type" binding:"required"`
-	Categories []string `bson:"categories" json:"categories"`
-
-	LikeCount   int `bson:"like_count" json:"likeCount"`
-	ReviewCount int `bson:"review_count" json:"reviewCount"`
-	TotalRating int `bson:"total_rating" json:"totalRating"`
+	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Name        string             `bson:"name" json:"name" binding:"required"`
+	ImageURL    string             `bson:"image_url" json:"imageURL" binding:"required"`
+	Speed       string             `bson:"speed" json:"speed" binding:"required"`
+	Categories  []string           `bson:"categories" json:"categories"`
+	LikeCount   int                `bson:"like_count" json:"likeCount"`
+	ReviewCount int                `bson:"review_count" json:"reviewCount"`
+	TotalRating int                `bson:"total_rating" json:"totalRating"`
 }
 
 type CreateStandardFoodRequest struct {

@@ -19,9 +19,8 @@ type FoodRepository interface {
 	FindCustomByName(ctx context.Context, name string) (*models.CustomFood, error)
 
 	CreateStandard(ctx context.Context, food *models.StandardFood) error
-	CreateCustorm(ctx context.Context, food *models.CustomFood) error
-
-	AddUserToCustomFood(ctx context.Context, foodID, userID primitive.ObjectID) error
+	CreateCustom(ctx context.Context, food *models.CustomFood) error
+	AddUserToCustom(ctx context.Context, foodID, userID primitive.ObjectID) (bool, error)
 
 	GetRandomStandard(ctx context.Context, speed string, count int) ([]*models.StandardFood, error)
 
@@ -104,16 +103,26 @@ func (r *foodRepository) CreateStandard(ctx context.Context, food *models.Standa
 	return err
 }
 
-func (r *foodRepository) CreateCustorm(ctx context.Context, food *models.CustomFood) error {
+func (r *foodRepository) CreateCustom(ctx context.Context, food *models.CustomFood) error {
 	_, err := r.customFoodCollection.InsertOne(ctx, food)
 	return err
 }
 
-func (r *foodRepository) AddUserToCustomFood(ctx context.Context, foodID, userID primitive.ObjectID) error {
+// 이미 있으면 true, 없으면 false
+func (r *foodRepository) AddUserToCustom(ctx context.Context, foodID, userID primitive.ObjectID) (bool, error) {
 	filter := bson.M{"_id": foodID}
 	update := bson.M{"$addToSet": bson.M{"using_user_ids": userID}}
-	_, err := r.customFoodCollection.UpdateOne(ctx, filter, update)
-	return err
+	result, err := r.customFoodCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return false, err
+	}
+	if result.MatchedCount == 0 {
+		return false, errors.New("custom food not found")
+	}
+	if result.ModifiedCount == 0 {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (r *foodRepository) GetRandomStandard(ctx context.Context, speed string, count int) ([]*models.StandardFood, error) {

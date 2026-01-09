@@ -4,6 +4,7 @@ package services
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
@@ -15,11 +16,11 @@ import (
 )
 
 type FoodService interface {
-	GetStandardFoodByID(ctx context.Context, id string) (*models.StandardFood, error)
-	CreateStandardFood(ctx context.Context, input models.CreateStandardFoodRequest) (*models.StandardFood, error)
-	FindOrCreateCustomFood(ctx context.Context, input models.CreateCustomFoodRequest, user models.User) (*models.CustomFood, error)
+	GetStandardByID(ctx context.Context, id string) (*models.StandardFood, error)
+	CreateStandard(ctx context.Context, req models.CreateStandardFoodRequest) (*models.StandardFood, error)
+	FindOrCreateCustom(ctx context.Context, req models.CreateCustomFoodRequest, userID string) (*models.CustomFood, error)
 
-	GetMainFeedFoods(foodType, speed string, foodCount int) ([]*models.StandardFood, error)
+	GetMainFeedFoods(speed string, foodCount int) ([]*models.StandardFood, error)
 
 	IncrementLikeCount(ctx context.Context, foodID string) error
 	DecrementLikeCount(ctx context.Context, foodID string) error
@@ -36,7 +37,7 @@ func NewFoodService(ctx context.Context, foodRepo repositories.FoodRepository) F
 	}
 }
 
-func (s *foodService) GetStandardFoodByID(ctx context.Context, foodID string) (*models.StandardFood, error) {
+func (s *foodService) GetStandardByID(ctx context.Context, foodID string) (*models.StandardFood, error) {
 	fID, err := primitive.ObjectIDFromHex(foodID)
 	if err != nil {
 		return nil, apperr.BadRequest("invalid food ID format", err)
@@ -53,7 +54,7 @@ func (s *foodService) GetStandardFoodByID(ctx context.Context, foodID string) (*
 	return food, nil
 }
 
-func (s *foodService) CreateStandardFood(ctx context.Context, req models.CreateStandardFoodRequest) (*models.StandardFood, error) {
+func (s *foodService) CreateStandard(ctx context.Context, req models.CreateStandardFoodRequest) (*models.StandardFood, error) {
 	food, err := s.foodRepo.FindStandardByName(ctx, req.Name)
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to fetch standard food", err)
@@ -67,7 +68,6 @@ func (s *foodService) CreateStandardFood(ctx context.Context, req models.CreateS
 		Name:        req.Name,
 		ImageURL:    req.ImageURL,
 		Speed:       req.Speed,
-		Type:        req.Type,
 		Categories:  req.Categories,
 		LikeCount:   0,
 		ReviewCount: 0,
@@ -82,49 +82,56 @@ func (s *foodService) CreateStandardFood(ctx context.Context, req models.CreateS
 	return newFood, nil
 }
 
-func (s *foodService) FindOrCreateCustomFood(ctx context.Context, input models.CreateCustomFoodRequest, user models.User) (*models.CustomFood, error) {
-	existingFood, err := s.foodRepo.FindCustomByName(ctx, input.Name)
+func (s *foodService) FindOrCreateCustom(ctx context.Context, req models.CreateCustomFoodRequest, userID string) (*models.CustomFood, error) {
+	uID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return nil, apperr.InternalServerError("invalid user ID in token", err)
+	}
 
+	existingFood, err := s.foodRepo.FindCustomByName(ctx, req.Name)
 	if err == mongo.ErrNoDocuments {
 		newFood := &models.CustomFood{
 			ID:           primitive.NewObjectID(),
-			Name:         input.Name,
-			UsingUserIDs: []primitive.ObjectID{user.ID},
+			Name:         req.Name,
+			UsingUserIDs: []primitive.ObjectID{uID},
 			CreatedAt:    time.Now(),
 		}
-		err := s.foodRepo.CreateCustorm(ctx, newFood)
+		err := s.foodRepo.CreateCustom(ctx, newFood)
 		if err != nil {
-			return nil, err
+			return nil, apperr.InternalServerError("failed to create custom food", err)
 		}
 
 		return newFood, nil
 	}
-
 	if err != nil {
-		return nil, err
+		return nil, apperr.InternalServerError("failed to fetch custom food", err)
 	}
 
-	err = s.foodRepo.AddUserToCustomFood(ctx, existingFood.ID, user.ID)
+	existed, err := s.foodRepo.AddUserToCustom(ctx, existingFood.ID, uID)
 	if err != nil {
-		return nil, err
+		return nil, apperr.InternalServerError("failed to add user to custom food", err)
+	}
+	if existed {
+		return existingFood, nil
 	}
 
-	alreadyExists := false
-	for _, uid := range existingFood.UsingUserIDs {
-		if uid == user.ID {
-			alreadyExists = true
-			break
-		}
-	}
-
-	if !alreadyExists {
-		existingFood.UsingUserIDs = append(existingFood.UsingUserIDs, user.ID)
-	}
-
+	existingFood.UsingUserIDs = append(existingFood.UsingUserIDs, uID)
 	return existingFood, nil
 }
 
-func (s *foodService) GetMainFeedFoods(foodType, speed string, foodCount int) ([]*models.StandardFood, error) {
+func (s *foodService) GetMainFeedFoods(speed string, foodCount int) ([]*models.StandardFood, error) {
+	if foodCount <= 0 {
+		return nil, apperr.BadRequest("food count must be positive", nil)
+	}
+	if foodCount > 10 {
+		log.Println("Someone requested too many foods for main feed:", foodCount)
+		foodCount = 10
+	}
+
+	if speed != models.SpeedFast && speed != models.SpeedSlow {
+		return nil, apperr.BadRequest("invalid speed type", nil)
+	}
+
 	// 임시로 그냥 랜덤 뽑기 설정
 	foods, err := s.foodRepo.GetRandomStandard(context.Background(), speed, foodCount)
 	if err != nil {

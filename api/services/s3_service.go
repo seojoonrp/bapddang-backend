@@ -1,3 +1,7 @@
+// api/services/s3_service.go
+
+// TODO. 미완임
+
 package services
 
 import (
