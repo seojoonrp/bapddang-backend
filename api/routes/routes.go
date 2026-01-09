@@ -18,8 +18,6 @@ func SetupRoutes(
 	foodHandler *handlers.FoodHandler,
 	reviewHandler *handlers.ReviewHandler,
 ) {
-	userCollection := db.Collection("users")
-
 	apiV1 := router.Group("/api/v1")
 	{
 		apiV1.GET("/ping", func(c *gin.Context) {
@@ -39,7 +37,7 @@ func SetupRoutes(
 		}
 
 		protected := apiV1.Group("/")
-		protected.Use(middleware.AuthMiddleware(userCollection))
+		protected.Use(middleware.AuthMiddleware())
 		{
 			protected.GET("/auth/me", userHandler.GetMe)
 

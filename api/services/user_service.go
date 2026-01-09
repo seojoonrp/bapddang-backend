@@ -4,18 +4,17 @@ package services
 
 import (
 	"context"
-	"crypto/rsa"
-	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"math/big"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/MicahParks/keyfunc/v3"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/seojoonrp/bapddang-server/api/repositories"
+	"github.com/seojoonrp/bapddang-server/apperr"
 	"github.com/seojoonrp/bapddang-server/config"
 	"github.com/seojoonrp/bapddang-server/models"
 	"github.com/seojoonrp/bapddang-server/utils"
@@ -39,8 +38,8 @@ type AppleKeys struct {
 
 type UserService interface {
 	CheckUsernameExists(ctx context.Context, username string) (bool, error)
-	SignUp(ctx context.Context, input models.SignUpInput) (*models.User, error)
-	Login(ctx context.Context, input models.LoginInput) (string, *models.User, error)
+	SignUp(ctx context.Context, req models.SignUpRequest) error
+	Login(ctx context.Context, input models.LoginRequest) (string, *models.User, error)
 	LoginWithGoogle(ctx context.Context, idToken string) (bool, string, *models.User, error)
 	LoginWithKakao(ctx context.Context, accessToken string) (bool, string, *models.User, error)
 	LoginWithApple(ctx context.Context, identityToken string) (bool, string, *models.User, error)
@@ -48,6 +47,7 @@ type UserService interface {
 	LikeFood(ctx context.Context, userID, foodID primitive.ObjectID) (bool, error)
 	UnlikeFood(ctx context.Context, userID, foodID primitive.ObjectID) (bool, error)
 	GetLikedFoodIDs(ctx context.Context, userID primitive.ObjectID) ([]primitive.ObjectID, error)
+	SyncUserDay(ctx context.Context, userID string) error
 }
 
 type userService struct {
@@ -62,7 +62,7 @@ func NewUserService(userRepo repositories.UserRepository, foodRepo repositories.
 func (s *userService) CheckUsernameExists(ctx context.Context, username string) (bool, error) {
 	user, err := s.userRepo.FindByUsername(ctx, username)
 	if err != nil {
-		return false, err
+		return false, apperr.InternalServerError("failed to fetch user", err)
 	}
 	if user != nil {
 		return true, nil
@@ -70,28 +70,28 @@ func (s *userService) CheckUsernameExists(ctx context.Context, username string) 
 	return false, nil
 }
 
-func (s *userService) SignUp(ctx context.Context, input models.SignUpInput) (*models.User, error) {
-	runes := []rune(input.Username)
+func (s *userService) SignUp(ctx context.Context, req models.SignUpRequest) error {
+	runes := []rune(req.Username)
 	if len(runes) < 3 || len(runes) > 15 {
-		return nil, errors.New("username must be between 3 and 15 characters")
+		return apperr.BadRequest("username must be between 3 and 15 characters", nil)
 	}
 
-	exists, err := s.CheckUsernameExists(ctx, input.Username)
+	exists, err := s.CheckUsernameExists(ctx, req.Username)
 	if err != nil {
-		return nil, err
+		return apperr.InternalServerError("failed to fetch user", err)
 	}
 	if exists {
-		return nil, errors.New("user already exists")
+		return apperr.Conflict("user already exists", nil)
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, err
+		return apperr.InternalServerError("failed to hash password", err)
 	}
 
 	newUser := &models.User{
 		ID:           primitive.NewObjectID(),
-		Username:     input.Username,
+		Username:     req.Username,
 		Password:     string(hashedPassword),
 		LoginMethod:  models.LoginMethodEmail,
 		Day:          1,
@@ -101,26 +101,22 @@ func (s *userService) SignUp(ctx context.Context, input models.SignUpInput) (*mo
 
 	err = s.userRepo.Save(ctx, newUser)
 	if err != nil {
-		return nil, err
+		return apperr.InternalServerError("failed to create user", err)
 	}
 
-	return newUser, nil
+	return nil
 }
 
-func (s *userService) Login(ctx context.Context, input models.LoginInput) (string, *models.User, error) {
-	user, err := s.userRepo.FindByUsername(ctx, input.Username)
-	if err != nil {
-		return "", nil, err // Invalid username
-	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password))
-	if err != nil {
-		return "", nil, err // Invalid password
+func (s *userService) Login(ctx context.Context, req models.LoginRequest) (string, *models.User, error) {
+	user, usernameErr := s.userRepo.FindByUsername(ctx, req.Username)
+	passwordErr := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	if user == nil || usernameErr != nil || passwordErr != nil {
+		return "", nil, apperr.Unauthorized("invalid username or password", nil)
 	}
 
 	token, err := utils.GenerateToken(user.ID.Hex())
 	if err != nil {
-		return "", nil, err
+		return "", nil, apperr.InternalServerError("failed to generate token", err)
 	}
 
 	return token, user, nil
@@ -132,7 +128,7 @@ func (s *userService) loginWithSocial(ctx context.Context, provider string, soci
 
 	user, err := s.userRepo.FindByUsername(ctx, targetUsername)
 	if err != nil {
-		return false, "", nil, err
+		return false, "", nil, apperr.InternalServerError("failed to fetch user", err)
 	}
 
 	if user == nil {
@@ -151,20 +147,24 @@ func (s *userService) loginWithSocial(ctx context.Context, provider string, soci
 		}
 
 		if err := s.userRepo.Save(ctx, user); err != nil {
-			return false, "", nil, err
+			return false, "", nil, apperr.InternalServerError("failed to create user", err)
 		}
 	}
 
 	signedToken, err := utils.GenerateToken(user.ID.Hex())
-	return isNew, signedToken, user, err
+	if err != nil {
+		return false, "", nil, apperr.InternalServerError("failed to generate token", err)
+	}
+
+	return isNew, signedToken, user, nil
 }
 
 func (s *userService) LoginWithGoogle(ctx context.Context, idToken string) (bool, string, *models.User, error) {
 	webClientID := config.AppConfig.GoogleWebClientID
 
-	payload, err := idtoken.Validate(ctx, idToken, webClientID)
+	payload, err := idtoken.Validate(context.Background(), idToken, webClientID)
 	if err != nil {
-		return false, "", nil, errors.New("invalid Google ID token")
+		return false, "", nil, apperr.Unauthorized("invalid Google ID token", err)
 	}
 
 	socialID := payload.Subject
@@ -179,8 +179,13 @@ func (s *userService) LoginWithKakao(ctx context.Context, accessToken string) (b
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
 	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		return false, "", nil, errors.New("invalid Kakao access token")
+	if err != nil {
+		return false, "", nil, apperr.ServiceUnavailable("kakao api server unreachable", err)
+	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		return false, "", nil, apperr.Unauthorized("expired or invalid kakao token", nil)
+	} else if resp.StatusCode != http.StatusOK {
+		return false, "", nil, apperr.InternalServerError("kakao api returned error status", fmt.Errorf("status: %d", resp.StatusCode))
 	}
 	defer resp.Body.Close()
 
@@ -194,7 +199,7 @@ func (s *userService) LoginWithKakao(ctx context.Context, accessToken string) (b
 		} `json:"kakao_account"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&kakaoRes); err != nil {
-		return false, "", nil, errors.New("failed to decode Kakao response")
+		return false, "", nil, apperr.InternalServerError("failed to decode Kakao user info", err)
 	}
 
 	socialID := strconv.FormatInt(kakaoRes.ID, 10)
@@ -204,56 +209,35 @@ func (s *userService) LoginWithKakao(ctx context.Context, accessToken string) (b
 }
 
 func (s *userService) verifyAppleToken(identityToken string, clientID string) (jwt.MapClaims, error) {
-	resp, err := http.Get("https://appleid.apple.com/auth/keys")
+	appleJWKSURL := "https://appleid.apple.com/auth/keys"
+
+	k, err := keyfunc.NewDefault([]string{appleJWKSURL})
 	if err != nil {
-		return nil, err
+		return nil, apperr.InternalServerError("failed to create keyfunc", err)
 	}
-	defer resp.Body.Close()
 
-	var appleKeys AppleKeys
-	json.NewDecoder(resp.Body).Decode(&appleKeys)
+	token, err := jwt.Parse(identityToken, k.Keyfunc)
+	if err != nil {
+		return nil, apperr.InternalServerError("invalid token", err)
+	}
 
-	token, err := jwt.Parse(identityToken, func(token *jwt.Token) (interface{}, error) {
-		kid := token.Header["kid"].(string)
-		for _, key := range appleKeys.Keys {
-			if key.Kid == kid {
-				nBytes, _ := base64.RawURLEncoding.DecodeString(key.N)
-				eBytes, _ := base64.RawURLEncoding.DecodeString(key.E)
-				var e int
-				for _, b := range eBytes {
-					e = e<<8 + int(b)
-				}
-				pubKey := &rsa.PublicKey{
-					N: new(big.Int).SetBytes(nBytes),
-					E: e,
-				}
-				return pubKey, nil
-			}
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		if claims["iss"] != "https://appleid.apple.com" {
+			return nil, apperr.Unauthorized("invalid issuer", nil)
 		}
-		return nil, errors.New("public key not found")
-	})
-
-	if err != nil || !token.Valid {
-		return nil, errors.New("invalid Apple identity token")
+		if claims["aud"] != clientID {
+			return nil, apperr.Unauthorized("invalid audience", nil)
+		}
+		return claims, nil
 	}
 
-	claims := token.Claims.(jwt.MapClaims)
-	if claims["iss"] != "https://appleid.apple.com" {
-		return nil, errors.New("invalid issuer")
-	}
-	if claims["aud"] != clientID {
-		return nil, errors.New("invalid audience")
-	}
-
-	fmt.Println("Successfully parsed apple token.")
-	return claims, nil
+	return nil, apperr.Unauthorized("invalid token claims", nil)
 }
 
 func (s *userService) LoginWithApple(ctx context.Context, identityToken string) (bool, string, *models.User, error) {
 	clientID := config.AppConfig.AppleBundleID
 	claims, err := s.verifyAppleToken(identityToken, clientID)
 	if err != nil {
-		fmt.Println("Error while verifying id token:", err)
 		return false, "", nil, err
 	}
 
@@ -283,4 +267,39 @@ func (s *userService) UnlikeFood(ctx context.Context, userID, foodID primitive.O
 
 func (s *userService) GetLikedFoodIDs(ctx context.Context, userID primitive.ObjectID) ([]primitive.ObjectID, error) {
 	return s.userRepo.GetLikedFoodIDs(ctx, userID)
+}
+
+func (s *userService) SyncUserDay(ctx context.Context, userID string) error {
+	uID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return apperr.InternalServerError("invalid user ID in token", err)
+	}
+
+	user, err := s.userRepo.FindByID(ctx, uID)
+	if err != nil {
+		return apperr.InternalServerError("failed to fetch user", err)
+	}
+	if user == nil {
+		return apperr.NotFound("user not found", nil)
+	}
+
+	seoulLoc, _ := time.LoadLocation("Asia/Seoul")
+	nowKST := time.Now().In(seoulLoc)
+	createdAtKST := user.CreatedAt.In(seoulLoc)
+
+	todayZero := time.Date(nowKST.Year(), nowKST.Month(), nowKST.Day(), 0, 0, 0, 0, seoulLoc)
+	startZero := time.Date(createdAtKST.Year(), createdAtKST.Month(), createdAtKST.Day(), 0, 0, 0, 0, seoulLoc)
+
+	calculatedDay := int(todayZero.Sub(startZero).Hours()/24) + 1
+
+	if user.Day < calculatedDay {
+		err := s.userRepo.UpdateDay(ctx, uID, calculatedDay)
+		if err != nil {
+			return apperr.InternalServerError("failed to update user day", err)
+		}
+		user.Day = calculatedDay
+	}
+
+	log.Printf("Successfully update user %s's day to %d", user.Username, calculatedDay)
+	return nil
 }

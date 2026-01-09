@@ -12,12 +12,13 @@ import (
 )
 
 type UserRepository interface {
+	FindByID(ctx context.Context, userID primitive.ObjectID) (*models.User, error)
 	FindByUsername(ctx context.Context, username string) (*models.User, error)
-	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	Save(ctx context.Context, user *models.User) error
 	AddLikedFood(ctx context.Context, userID, foodID primitive.ObjectID) (bool, error)
 	RemoveLikedFood(ctx context.Context, userID, foodID primitive.ObjectID) (bool, error)
 	GetLikedFoodIDs(ctx context.Context, userID primitive.ObjectID) ([]primitive.ObjectID, error)
+	UpdateDay(ctx context.Context, userID primitive.ObjectID, newDay int) error
 }
 
 type userRepository struct {
@@ -28,9 +29,9 @@ func NewUserRepository(db *mongo.Database) UserRepository {
 	return &userRepository{collection: db.Collection("users")}
 }
 
-func (r *userRepository) FindByUsername(ctx context.Context, username string) (*models.User, error) {
+func (r *userRepository) FindByID(ctx context.Context, userID primitive.ObjectID) (*models.User, error) {
 	var user models.User
-	err := r.collection.FindOne(ctx, bson.M{"username": username}).Decode(&user)
+	err := r.collection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil
@@ -40,10 +41,13 @@ func (r *userRepository) FindByUsername(ctx context.Context, username string) (*
 	return &user, nil
 }
 
-func (r *userRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
+func (r *userRepository) FindByUsername(ctx context.Context, username string) (*models.User, error) {
 	var user models.User
-	err := r.collection.FindOne(ctx, bson.M{"email": email}).Decode(&user)
+	err := r.collection.FindOne(ctx, bson.M{"username": username}).Decode(&user)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &user, nil
@@ -83,4 +87,12 @@ func (r *userRepository) GetLikedFoodIDs(ctx context.Context, userID primitive.O
 		return nil, err
 	}
 	return user.LikedFoodIDs, nil
+}
+
+func (r *userRepository) UpdateDay(ctx context.Context, userID primitive.ObjectID, newDay int) error {
+	filter := bson.M{"_id": userID}
+	update := bson.M{"$set": bson.M{"day": newDay}}
+
+	_, err := r.collection.UpdateOne(ctx, filter, update)
+	return err
 }

@@ -27,12 +27,12 @@ type User struct {
 	CreatedAt    time.Time            `bson:"created_at" json:"createdAt"`
 }
 
-type SignUpInput struct {
+type SignUpRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
-type LoginInput struct {
+type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }

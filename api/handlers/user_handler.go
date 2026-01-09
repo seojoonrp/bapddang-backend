@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/seojoonrp/bapddang-server/api/services"
+	"github.com/seojoonrp/bapddang-server/apperr"
 	"github.com/seojoonrp/bapddang-server/models"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -23,111 +24,106 @@ func NewUserHandler(userService services.UserService, foodService services.FoodS
 	}
 }
 
-func (h *UserHandler) CheckUsernameExists(ctx *gin.Context) {
-	username := ctx.Query("username")
+func (h *UserHandler) CheckUsernameExists(c *gin.Context) {
+	username := c.Query("username")
 	if username == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Username query parameter is required"})
+		c.Error(apperr.BadRequest("username query parameter is required", nil))
 		return
 	}
 
-	exists, err := h.userService.CheckUsernameExists(ctx, username)
+	exists, err := h.userService.CheckUsernameExists(c, username)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"exists": exists})
+	c.JSON(http.StatusOK, gin.H{"exists": exists})
 }
 
-func (h *UserHandler) SignUp(ctx *gin.Context) {
-	var input models.SignUpInput
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+func (h *UserHandler) SignUp(c *gin.Context) {
+	var req models.SignUpRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(apperr.BadRequest("invalid request body", err))
 		return
 	}
 
-	user, err := h.userService.SignUp(ctx, input)
+	err := h.userService.SignUp(c, req)
 	if err != nil {
-		if err.Error() == "user already exists" {
-			ctx.JSON(http.StatusConflict, gin.H{"error": "User already exists"})
-			return
-		}
-
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, user)
+	c.JSON(http.StatusCreated, gin.H{"message": "user created successfully"})
 }
 
-func (h *UserHandler) Login(ctx *gin.Context) {
-	var input models.LoginInput
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+func (h *UserHandler) Login(c *gin.Context) {
+	var req models.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
 
-	token, user, err := h.userService.Login(ctx, input)
+	token, user, err := h.userService.Login(c, req)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		c.Error(err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"accessToken": token,
 		"user":        user,
 		"isNewUser":   false,
 	})
 }
 
-func (h *UserHandler) GoogleLogin(ctx *gin.Context) {
-	var input struct {
+func (h *UserHandler) GoogleLogin(c *gin.Context) {
+	var req struct {
 		IDToken string `json:"idToken" binding:"required"`
 	}
 
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(apperr.BadRequest("invalid request body", err))
 		return
 	}
 
-	isNew, token, user, err := h.userService.LoginWithGoogle(ctx, input.IDToken)
+	isNew, token, user, err := h.userService.LoginWithGoogle(c, req.IDToken)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Google login failed"})
+		c.Error(err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"accessToken": token,
 		"user":        user,
 		"isNewUser":   isNew,
 	})
 }
 
-func (h *UserHandler) KakaoLogin(ctx *gin.Context) {
-	var input struct {
+func (h *UserHandler) KakaoLogin(c *gin.Context) {
+	var req struct {
 		AccessToken string `json:"accessToken" binding:"required"`
 	}
 
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(apperr.BadRequest("invalid request body", err))
 		return
 	}
 
-	isNew, token, user, err := h.userService.LoginWithKakao(ctx, input.AccessToken)
+	isNew, token, user, err := h.userService.LoginWithKakao(c, req.AccessToken)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Kakao login failed"})
+		c.Error(err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"accessToken": token,
 		"user":        user,
 		"isNewUser":   isNew,
 	})
 }
 
-func (h *UserHandler) AppleLogin(ctx *gin.Context) {
-	var input struct {
+func (h *UserHandler) AppleLogin(c *gin.Context) {
+	var req struct {
 		IdentityToken string `json:"identityToken" binding:"required"`
 		FullName      struct {
 			GivenName  string `json:"givenName"`
@@ -135,19 +131,19 @@ func (h *UserHandler) AppleLogin(ctx *gin.Context) {
 		} `json:"fullName"`
 	}
 
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(apperr.BadRequest("invalid request body", err))
 		return
 	}
 
-	isNew, token, user, err := h.userService.LoginWithApple(ctx, input.IdentityToken)
+	isNew, token, user, err := h.userService.LoginWithApple(c, req.IdentityToken)
 
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Apple login failed"})
+		c.Error(err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"accessToken": token,
 		"user":        user,
 		"isNewUser":   isNew,
@@ -246,4 +242,20 @@ func (h *UserHandler) GetLikedFoods(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"likedFoods": foods})
+}
+
+func (h *UserHandler) SyncUserDay(ctx *gin.Context) {
+	userID, err := GetUserID(ctx)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+
+	err = h.userService.SyncUserDay(ctx, userID)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "user day synchronized successfully"})
 }
