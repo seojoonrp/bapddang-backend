@@ -22,7 +22,7 @@ type StandardFood struct {
 	TotalRating int `bson:"total_rating" json:"totalRating"`
 }
 
-type NewStandardFoodInput struct {
+type CreateStandardFoodRequest struct {
 	Name       string   `json:"name"`
 	ImageURL   string   `json:"imageURL"`
 	Speed      string   `json:"speed"`
@@ -37,24 +37,6 @@ type CustomFood struct {
 	CreatedAt    time.Time            `bson:"created_at" json:"createdAt"`
 }
 
-type NewCustomFoodInput struct {
+type CreateCustomFoodRequest struct {
 	Name string `json:"name"`
-}
-
-type ValidateFoodsInput struct {
-	Names []string `json:"names" binding:"required,min=1"`
-}
-
-type ValidationOutput struct {
-	ID   primitive.ObjectID `json:"id"`
-	Name string             `json:"name"`
-	Type string             `json:"type"`
-}
-
-type ValidationResult struct {
-	Status            string             `json:"status"`
-	OriginalName      string             `json:"originalName"`
-	OkOutput          *ValidationOutput  `json:"okOutput,omitempty"`
-	SuggestionOutputs []ValidationOutput `json:"suggestionOutputs,omitempty"`
-	NewOutput         *ValidationOutput  `json:"newOutput,omitempty"`
 }

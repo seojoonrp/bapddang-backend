@@ -145,13 +145,6 @@ func (r *foodRepository) GetRandomStandard(ctx context.Context, speed string, co
 }
 
 func (r *foodRepository) UpdateCreatedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, rating int) error {
-	if len(foodIDs) == 0 {
-		return nil
-	}
-	if rating <= 0 || rating > 5 {
-		return nil
-	}
-
 	filter := bson.M{"_id": bson.M{"$in": foodIDs}}
 
 	incMap := bson.M{"review_count": 1}
@@ -163,13 +156,6 @@ func (r *foodRepository) UpdateCreatedReviewStats(ctx context.Context, foodIDs [
 }
 
 func (r *foodRepository) UpdateModifiedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, oldRating, newRating int) error {
-	if len(foodIDs) == 0 {
-		return nil
-	}
-	if newRating <= 0 || newRating > 5 {
-		return nil
-	}
-
 	filter := bson.M{"_id": bson.M{"$in": foodIDs}}
 
 	ratingDiff := newRating - oldRating

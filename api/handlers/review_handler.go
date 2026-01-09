@@ -10,8 +10,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/seojoonrp/bapddang-server/api/services"
+	"github.com/seojoonrp/bapddang-server/apperr"
 	"github.com/seojoonrp/bapddang-server/models"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type ReviewHandler struct {
@@ -26,104 +26,71 @@ func NewReviewHandler(reviewService services.ReviewService, foodService services
 	}
 }
 
-func (h *ReviewHandler) CreateReview(ctx *gin.Context) {
-	var input models.ReviewInput
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid review request format"})
+func (h *ReviewHandler) CreateReview(c *gin.Context) {
+	var req models.CreateReviewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(apperr.BadRequest("invalid request body", err))
 		return
 	}
 
-	userCtx, exists := ctx.Get("currentUser")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
-		return
-	}
-	user := userCtx.(models.User)
-
-	newReview, err := h.reviewService.CreateReview(ctx, input, user)
+	userID, err := GetUserID(c)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to create review"})
+		c.Error(err)
 		return
 	}
 
-	standardFoods := make([]primitive.ObjectID, 0)
-	for _, foodItem := range newReview.Foods {
-		if foodItem.FoodType == "standard" {
-			standardFoods = append(standardFoods, foodItem.FoodID)
-		}
-	}
-	if len(standardFoods) > 0 {
-		go h.foodService.UpdateCreatedReviewStats(ctx, standardFoods, input.Rating)
+	newReview, err := h.reviewService.CreateReview(c, req, userID)
+	if err != nil {
+		c.Error(err)
+		return
 	}
 
-	ctx.JSON(http.StatusCreated, newReview)
+	c.JSON(http.StatusCreated, gin.H{"review": newReview})
 }
 
-func (h *ReviewHandler) UpdateReview(ctx *gin.Context) {
-	var input models.ReviewInput
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid review request format"})
+func (h *ReviewHandler) UpdateReview(c *gin.Context) {
+	var req models.UpdateReviewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(apperr.BadRequest("invalid request body", err))
 		return
 	}
 
-	userCtx, exists := ctx.Get("currentUser")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
-		return
-	}
-	user := userCtx.(models.User)
-
-	reviewIDHex := ctx.Param("reviewID")
-	reviewID, err := primitive.ObjectIDFromHex(reviewIDHex)
+	userID, err := GetUserID(c)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid review ID format"})
+		c.Error(err)
 		return
 	}
 
-	updatedReview, oldRating, err := h.reviewService.UpdateReview(ctx, reviewID, input, user)
+	reviewID := c.Param("reviewID")
+
+	updatedReview, err := h.reviewService.UpdateReview(c, reviewID, userID, req)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update review"})
+		c.Error(err)
 		return
 	}
 
-	standardFoods := make([]primitive.ObjectID, 0)
-	for _, foodItem := range updatedReview.Foods {
-		if foodItem.FoodType == "standard" {
-			standardFoods = append(standardFoods, foodItem.FoodID)
-		}
-	}
-	if len(standardFoods) > 0 && oldRating != input.Rating {
-		go h.foodService.UpdateModifiedReviewStats(ctx, standardFoods, oldRating, input.Rating)
-	}
-
-	ctx.JSON(http.StatusOK, updatedReview)
+	c.JSON(http.StatusOK, gin.H{"review": updatedReview})
 }
 
-func (h *ReviewHandler) GetMyReviewsByDay(ctx *gin.Context) {
-	userCtx, exists := ctx.Get("currentUser")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
-		return
-	}
-	user := userCtx.(models.User)
-
-	dayStr := ctx.Query("day")
-	if dayStr == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Day query parameter is required"})
+func (h *ReviewHandler) GetMyReviewsByDay(c *gin.Context) {
+	userID, err := GetUserID(c)
+	if err != nil {
+		c.Error(err)
 		return
 	}
 
+	dayStr := c.Query("day")
 	day, err := strconv.Atoi(dayStr)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid day query parameter"})
+		c.Error(apperr.BadRequest("invalid day query parameter", err))
 		return
 	}
 
-	reviews, err := h.reviewService.GetMyReviewsByDay(ctx, user.ID, day)
+	reviews, err := h.reviewService.GetMyReviewsByDay(c, userID, day)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to fetch reviews"})
+		c.Error(err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, reviews)
+	c.JSON(http.StatusOK, gin.H{"reviews": reviews})
 }

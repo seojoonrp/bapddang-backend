@@ -16,13 +16,10 @@ import (
 
 type FoodService interface {
 	GetStandardFoodByID(ctx context.Context, id string) (*models.StandardFood, error)
-	CreateStandardFood(ctx context.Context, input models.NewStandardFoodInput) (*models.StandardFood, error)
-	FindOrCreateCustomFood(ctx context.Context, input models.NewCustomFoodInput, user models.User) (*models.CustomFood, error)
+	CreateStandardFood(ctx context.Context, input models.CreateStandardFoodRequest) (*models.StandardFood, error)
+	FindOrCreateCustomFood(ctx context.Context, input models.CreateCustomFoodRequest, user models.User) (*models.CustomFood, error)
 
 	GetMainFeedFoods(foodType, speed string, foodCount int) ([]*models.StandardFood, error)
-
-	UpdateCreatedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, rating int) error
-	UpdateModifiedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, oldRating, newRating int) error
 
 	IncrementLikeCount(ctx context.Context, foodID string) error
 	DecrementLikeCount(ctx context.Context, foodID string) error
@@ -56,7 +53,7 @@ func (s *foodService) GetStandardFoodByID(ctx context.Context, foodID string) (*
 	return food, nil
 }
 
-func (s *foodService) CreateStandardFood(ctx context.Context, req models.NewStandardFoodInput) (*models.StandardFood, error) {
+func (s *foodService) CreateStandardFood(ctx context.Context, req models.CreateStandardFoodRequest) (*models.StandardFood, error) {
 	food, err := s.foodRepo.FindStandardByName(ctx, req.Name)
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to fetch standard food", err)
@@ -85,7 +82,7 @@ func (s *foodService) CreateStandardFood(ctx context.Context, req models.NewStan
 	return newFood, nil
 }
 
-func (s *foodService) FindOrCreateCustomFood(ctx context.Context, input models.NewCustomFoodInput, user models.User) (*models.CustomFood, error) {
+func (s *foodService) FindOrCreateCustomFood(ctx context.Context, input models.CreateCustomFoodRequest, user models.User) (*models.CustomFood, error) {
 	existingFood, err := s.foodRepo.FindCustomByName(ctx, input.Name)
 
 	if err == mongo.ErrNoDocuments {
@@ -135,29 +132,6 @@ func (s *foodService) GetMainFeedFoods(foodType, speed string, foodCount int) ([
 	}
 
 	return foods, nil
-}
-
-type matchCandidates struct {
-	Score  float64
-	Output models.ValidationOutput
-}
-
-func (s *foodService) UpdateCreatedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, rating int) error {
-	err := s.foodRepo.UpdateCreatedReviewStats(ctx, foodIDs, rating)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *foodService) UpdateModifiedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, oldRating, newRating int) error {
-	err := s.foodRepo.UpdateModifiedReviewStats(ctx, foodIDs, oldRating, newRating)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (s *foodService) IncrementLikeCount(ctx context.Context, foodID string) error {

@@ -39,7 +39,7 @@ func (h *FoodHandler) GetStandardFoodByID(ctx *gin.Context) {
 }
 
 func (h *FoodHandler) CreateStandardFood(ctx *gin.Context) {
-	var input models.NewStandardFoodInput
+	var input models.CreateStandardFoodRequest
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
@@ -60,7 +60,7 @@ func (h *FoodHandler) CreateStandardFood(ctx *gin.Context) {
 }
 
 func (h *FoodHandler) FindOrCreateCustomFood(ctx *gin.Context) {
-	var input models.NewCustomFoodInput
+	var input models.CreateCustomFoodRequest
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

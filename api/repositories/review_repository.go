@@ -12,10 +12,10 @@ import (
 )
 
 type ReviewRepository interface {
-	SaveReview(ctx context.Context, review *models.Review) error
+	CreateReview(ctx context.Context, review *models.Review) error
 	UpdateReview(ctx context.Context, review *models.Review) error
 	FindByUserIDAndDay(ctx context.Context, userID primitive.ObjectID, day int) ([]models.Review, error)
-	FindByIDAndUserID(ctx context.Context, reviewID, userID primitive.ObjectID) (*models.Review, error)
+	FindByID(ctx context.Context, reviewID primitive.ObjectID) (*models.Review, error)
 }
 
 type reviewRepository struct {
@@ -26,7 +26,7 @@ func NewReviewRepository(db *mongo.Database) ReviewRepository {
 	return &reviewRepository{collection: db.Collection("reviews")}
 }
 
-func (r *reviewRepository) SaveReview(ctx context.Context, review *models.Review) error {
+func (r *reviewRepository) CreateReview(ctx context.Context, review *models.Review) error {
 	_, err := r.collection.InsertOne(ctx, review)
 	return err
 }
@@ -65,14 +65,14 @@ func (r *reviewRepository) FindByUserIDAndDay(ctx context.Context, userID primit
 	return reviews, nil
 }
 
-func (r *reviewRepository) FindByIDAndUserID(ctx context.Context, reviewID, userID primitive.ObjectID) (*models.Review, error) {
+func (r *reviewRepository) FindByID(ctx context.Context, reviewID primitive.ObjectID) (*models.Review, error) {
 	var review models.Review
-
-	filter := bson.M{"_id": reviewID, "user_id": userID}
-	err := r.collection.FindOne(ctx, filter).Decode(&review)
+	err := r.collection.FindOne(ctx, bson.M{"_id": reviewID}).Decode(&review)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
 		return nil, err
 	}
-
 	return &review, nil
 }
