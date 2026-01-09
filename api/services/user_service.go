@@ -40,13 +40,11 @@ type UserService interface {
 	CheckUsernameExists(ctx context.Context, username string) (bool, error)
 	SignUp(ctx context.Context, req models.SignUpRequest) error
 	Login(ctx context.Context, input models.LoginRequest) (string, *models.User, error)
+
 	LoginWithGoogle(ctx context.Context, idToken string) (bool, string, *models.User, error)
 	LoginWithKakao(ctx context.Context, accessToken string) (bool, string, *models.User, error)
 	LoginWithApple(ctx context.Context, identityToken string) (bool, string, *models.User, error)
 
-	LikeFood(ctx context.Context, userID, foodID primitive.ObjectID) (bool, error)
-	UnlikeFood(ctx context.Context, userID, foodID primitive.ObjectID) (bool, error)
-	GetLikedFoodIDs(ctx context.Context, userID primitive.ObjectID) ([]primitive.ObjectID, error)
 	SyncUserDay(ctx context.Context, userID string) error
 }
 
@@ -90,16 +88,15 @@ func (s *userService) SignUp(ctx context.Context, req models.SignUpRequest) erro
 	}
 
 	newUser := &models.User{
-		ID:           primitive.NewObjectID(),
-		Username:     req.Username,
-		Password:     string(hashedPassword),
-		LoginMethod:  models.LoginMethodEmail,
-		Day:          1,
-		LikedFoodIDs: make([]primitive.ObjectID, 0),
-		CreatedAt:    time.Now(),
+		ID:          primitive.NewObjectID(),
+		Username:    req.Username,
+		Password:    string(hashedPassword),
+		LoginMethod: models.LoginMethodLocal,
+		Day:         1,
+		CreatedAt:   time.Now(),
 	}
 
-	err = s.userRepo.Save(ctx, newUser)
+	err = s.userRepo.Create(ctx, newUser)
 	if err != nil {
 		return apperr.InternalServerError("failed to create user", err)
 	}
@@ -134,19 +131,18 @@ func (s *userService) loginWithSocial(ctx context.Context, provider string, soci
 	if user == nil {
 		isNew = true
 		user = &models.User{
-			ID:           primitive.NewObjectID(),
-			Username:     targetUsername,
-			SocialID:     socialID,
-			LoginMethod:  provider,
-			Day:          1,
-			LikedFoodIDs: make([]primitive.ObjectID, 0),
-			CreatedAt:    time.Now(),
+			ID:          primitive.NewObjectID(),
+			Username:    targetUsername,
+			SocialID:    socialID,
+			LoginMethod: provider,
+			Day:         1,
+			CreatedAt:   time.Now(),
 		}
 		if email != "" {
 			user.Email = email
 		}
 
-		if err := s.userRepo.Save(ctx, user); err != nil {
+		if err := s.userRepo.Create(ctx, user); err != nil {
 			return false, "", nil, apperr.InternalServerError("failed to create user", err)
 		}
 	}
@@ -245,28 +241,6 @@ func (s *userService) LoginWithApple(ctx context.Context, identityToken string) 
 	email, _ := claims["email"].(string)
 
 	return s.loginWithSocial(ctx, models.LoginMethodApple, socialID, email)
-}
-
-func (s *userService) LikeFood(ctx context.Context, userID, foodID primitive.ObjectID) (bool, error) {
-	wasAdded, err := s.userRepo.AddLikedFood(ctx, userID, foodID)
-	if err != nil {
-		return false, err
-	}
-
-	return wasAdded, nil
-}
-
-func (s *userService) UnlikeFood(ctx context.Context, userID, foodID primitive.ObjectID) (bool, error) {
-	wasRemoved, err := s.userRepo.RemoveLikedFood(ctx, userID, foodID)
-	if err != nil {
-		return false, err
-	}
-
-	return wasRemoved, nil
-}
-
-func (s *userService) GetLikedFoodIDs(ctx context.Context, userID primitive.ObjectID) ([]primitive.ObjectID, error) {
-	return s.userRepo.GetLikedFoodIDs(ctx, userID)
 }
 
 func (s *userService) SyncUserDay(ctx context.Context, userID string) error {

@@ -37,25 +37,37 @@ func SetupRoutes(
 			authRoutes.POST("/apple", userHandler.AppleLogin)
 		}
 
-		protected := apiV1.Group("/")
-		protected.Use(middleware.AuthMiddleware())
+		users := apiV1.Group("/users")
+		users.Use(middleware.AuthMiddleware())
 		{
-			protected.GET("/auth/me", userHandler.GetMe)
-
-			protected.GET("/liked-foods", likeHandler.GetLikedFoods)
-
-			protected.POST("/foods/:foodID/like", likeHandler.LikeFood)
-			protected.DELETE("/foods/:foodID/like", likeHandler.UnlikeFood)
-			protected.POST("/custom-foods", foodHandler.FindOrCreateCustomFood)
-
-			protected.POST("/reviews", reviewHandler.CreateReview)
-			protected.GET("/reviews/me", reviewHandler.GetMyReviewsByDay)
+			users.GET("/me", userHandler.GetMe)
+			users.GET("/me/liked-foods", likeHandler.GetLikedFoods)
+			users.GET("/me/reviews", reviewHandler.GetMyReviewsByDay)
 		}
 
-		apiV1.GET("/foods/:foodID", foodHandler.GetStandardFoodByID)
-		apiV1.GET("/foods/main-feed", foodHandler.GetMainFeedFoods)
+		foods := apiV1.Group("/foods")
+		{
+			foods.GET("/:foodID", foodHandler.GetStandardFoodByID)
+			foods.GET("/main-feed", foodHandler.GetMainFeedFoods)
 
-		adminRoutes := apiV1.Group("/admin")
+			protectedFoods := foods.Group("/")
+			protectedFoods.Use(middleware.AuthMiddleware())
+			{
+				protectedFoods.POST("/:foodID/likes", likeHandler.LikeFood)
+				protectedFoods.DELETE("/:foodID/likes", likeHandler.UnlikeFood)
+
+				protectedFoods.POST("/custom", foodHandler.FindOrCreateCustomFood)
+			}
+		}
+
+		reviews := apiV1.Group("/reviews")
+		reviews.Use(middleware.AuthMiddleware())
+		{
+
+			reviews.POST("/", reviewHandler.CreateReview)
+		}
+
+		adminRoutes := apiV1.Group("/admin") // no protection for now
 		{
 			adminRoutes.POST("/new-food", foodHandler.CreateStandardFood)
 		}

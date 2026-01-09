@@ -124,7 +124,7 @@ func (s *foodService) GetMainFeedFoods(speed string, foodCount int) ([]*models.S
 		return nil, apperr.BadRequest("food count must be positive", nil)
 	}
 	if foodCount > 10 {
-		log.Println("Someone requested too many foods for main feed:", foodCount)
+		log.Println("[WARNING] Someone requested too many foods for main feed:", foodCount)
 		foodCount = 10
 	}
 

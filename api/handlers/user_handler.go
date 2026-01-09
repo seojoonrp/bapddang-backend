@@ -149,28 +149,28 @@ func (h *UserHandler) AppleLogin(c *gin.Context) {
 	})
 }
 
-func (h *UserHandler) GetMe(ctx *gin.Context) {
-	userCtx, exists := ctx.Get("currentUser")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
+func (h *UserHandler) GetMe(c *gin.Context) {
+	userID, err := GetUserID(c)
+	if err != nil {
+		c.Error(err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, userCtx)
+	c.JSON(http.StatusOK, gin.H{"userID": userID})
 }
 
-func (h *UserHandler) SyncUserDay(ctx *gin.Context) {
-	userID, err := GetUserID(ctx)
+func (h *UserHandler) SyncUserDay(c *gin.Context) {
+	userID, err := GetUserID(c)
 	if err != nil {
-		ctx.Error(err)
+		c.Error(err)
 		return
 	}
 
-	err = h.userService.SyncUserDay(ctx, userID)
+	err = h.userService.SyncUserDay(c, userID)
 	if err != nil {
-		ctx.Error(err)
+		c.Error(err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "user day synchronized successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "user day synchronized successfully"})
 }
