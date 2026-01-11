@@ -23,6 +23,7 @@ type StandardFood struct {
 	Name        string             `bson:"name" json:"name" binding:"required"`
 	ImageURL    string             `bson:"image_url" json:"imageURL" binding:"required"`
 	Speed       string             `bson:"speed" json:"speed" binding:"required"`
+	Parents     []string           `bson:"parents" json:"parents"`
 	Categories  []string           `bson:"categories" json:"categories"`
 	LikeCount   int                `bson:"like_count" json:"likeCount"`
 	ReviewCount int                `bson:"review_count" json:"reviewCount"`
@@ -30,11 +31,11 @@ type StandardFood struct {
 }
 
 type CreateStandardFoodRequest struct {
-	Name       string   `json:"name"`
-	ImageURL   string   `json:"imageURL"`
-	Speed      string   `json:"speed"`
-	Type       string   `json:"type"`
-	Categories []string `json:"categories"`
+	Name       string   `json:"name" binding:"required"`
+	ImageURL   string   `json:"imageURL" binding:"required"`
+	Speed      string   `json:"speed" binding:"required"`
+	Parents    []string `json:"parents" binding:"required"`
+	Categories []string `json:"categories" binding:"required"`
 }
 
 type CustomFood struct {

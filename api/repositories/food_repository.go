@@ -18,7 +18,7 @@ type FoodRepository interface {
 	FindStandardByName(ctx context.Context, name string) (*models.StandardFood, error)
 	FindCustomByName(ctx context.Context, name string) (*models.CustomFood, error)
 
-	CreateStandard(ctx context.Context, food *models.StandardFood) error
+	CreateStandards(ctx context.Context, foods []interface{}) error
 	CreateCustom(ctx context.Context, food *models.CustomFood) error
 	AddUserToCustom(ctx context.Context, foodID, userID primitive.ObjectID) (bool, error)
 
@@ -98,8 +98,8 @@ func (r *foodRepository) FindCustomByName(ctx context.Context, name string) (*mo
 	return &food, nil
 }
 
-func (r *foodRepository) CreateStandard(ctx context.Context, food *models.StandardFood) error {
-	_, err := r.standardFoodCollection.InsertOne(ctx, food)
+func (r *foodRepository) CreateStandards(ctx context.Context, foods []interface{}) error {
+	_, err := r.standardFoodCollection.InsertMany(ctx, foods)
 	return err
 }
 

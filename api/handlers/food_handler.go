@@ -34,20 +34,20 @@ func (h *FoodHandler) GetStandardFoodByID(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"standard_food": food})
 }
 
-func (h *FoodHandler) CreateStandardFood(c *gin.Context) {
-	var req models.CreateStandardFoodRequest
+func (h *FoodHandler) CreateStandardFoods(c *gin.Context) {
+	var req []models.CreateStandardFoodRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Error(apperr.BadRequest("invalid request body", err))
 		return
 	}
 
-	newFood, err := h.foodService.CreateStandard(c, req)
+	newFoods, err := h.foodService.CreateStandards(c, req)
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"standard_food": newFood})
+	c.JSON(http.StatusCreated, gin.H{"standard_foods": newFoods})
 }
 
 func (h *FoodHandler) FindOrCreateCustomFood(c *gin.Context) {

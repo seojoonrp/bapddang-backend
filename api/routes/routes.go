@@ -69,7 +69,7 @@ func SetupRoutes(
 
 		adminRoutes := apiV1.Group("/admin") // no protection for now
 		{
-			adminRoutes.POST("/new-food", foodHandler.CreateStandardFood)
+			adminRoutes.POST("/standard-foods", foodHandler.CreateStandardFoods)
 		}
 	}
 }

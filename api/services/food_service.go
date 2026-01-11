@@ -17,7 +17,7 @@ import (
 
 type FoodService interface {
 	GetStandardByID(ctx context.Context, id string) (*models.StandardFood, error)
-	CreateStandard(ctx context.Context, req models.CreateStandardFoodRequest) (*models.StandardFood, error)
+	CreateStandards(ctx context.Context, req []models.CreateStandardFoodRequest) ([]*models.StandardFood, error)
 	FindOrCreateCustom(ctx context.Context, req models.CreateCustomFoodRequest, userID string) (*models.CustomFood, error)
 
 	GetMainFeedFoods(speed string, foodCount int) ([]*models.StandardFood, error)
@@ -54,32 +54,32 @@ func (s *foodService) GetStandardByID(ctx context.Context, foodID string) (*mode
 	return food, nil
 }
 
-func (s *foodService) CreateStandard(ctx context.Context, req models.CreateStandardFoodRequest) (*models.StandardFood, error) {
-	food, err := s.foodRepo.FindStandardByName(ctx, req.Name)
+func (s *foodService) CreateStandards(ctx context.Context, req []models.CreateStandardFoodRequest) ([]*models.StandardFood, error) {
+	var newFoods []*models.StandardFood
+	var docs []interface{}
+
+	for _, foodReq := range req {
+		newFood := &models.StandardFood{
+			ID:          primitive.NewObjectID(),
+			Name:        foodReq.Name,
+			ImageURL:    foodReq.ImageURL,
+			Speed:       foodReq.Speed,
+			Parents:     foodReq.Parents,
+			Categories:  foodReq.Categories,
+			LikeCount:   0,
+			ReviewCount: 0,
+			TotalRating: 0,
+		}
+		newFoods = append(newFoods, newFood)
+		docs = append(docs, newFood)
+	}
+
+	err := s.foodRepo.CreateStandards(ctx, docs)
 	if err != nil {
-		return nil, apperr.InternalServerError("failed to fetch standard food", err)
-	}
-	if food == nil {
-		return nil, apperr.Conflict("food already exists", nil)
+		return nil, apperr.InternalServerError("failed to create standard foods", err)
 	}
 
-	newFood := &models.StandardFood{
-		ID:          primitive.NewObjectID(),
-		Name:        req.Name,
-		ImageURL:    req.ImageURL,
-		Speed:       req.Speed,
-		Categories:  req.Categories,
-		LikeCount:   0,
-		ReviewCount: 0,
-		TotalRating: 0,
-	}
-
-	err = s.foodRepo.CreateStandard(ctx, newFood)
-	if err != nil {
-		return nil, apperr.InternalServerError("failed to create standard food", err)
-	}
-
-	return newFood, nil
+	return newFoods, nil
 }
 
 func (s *foodService) FindOrCreateCustom(ctx context.Context, req models.CreateCustomFoodRequest, userID string) (*models.CustomFood, error) {
