@@ -156,7 +156,13 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"userID": userID})
+	user, err := h.userService.GetUserByID(c, userID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 
 func (h *UserHandler) SyncUserDay(c *gin.Context) {

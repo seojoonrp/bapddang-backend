@@ -26,7 +26,7 @@ func (h *LikeHandler) LikeFood(c *gin.Context) {
 		return
 	}
 
-	fIDStr := c.Param("id")
+	fIDStr := c.Param("foodID")
 
 	err = h.likeService.LikeFood(c.Request.Context(), userID, fIDStr)
 	if err != nil {
@@ -44,7 +44,7 @@ func (h *LikeHandler) UnlikeFood(c *gin.Context) {
 		return
 	}
 
-	fIDStr := c.Param("id")
+	fIDStr := c.Param("foodID")
 
 	err = h.likeService.UnlikeFood(c.Request.Context(), userID, fIDStr)
 	if err != nil {

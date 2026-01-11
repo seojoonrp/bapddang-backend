@@ -38,6 +38,7 @@ type AppleKeys struct {
 
 type UserService interface {
 	CheckUsernameExists(ctx context.Context, username string) (bool, error)
+	GetUserByID(ctx context.Context, userID string) (*models.User, error)
 	SignUp(ctx context.Context, req models.SignUpRequest) error
 	Login(ctx context.Context, input models.LoginRequest) (string, *models.User, error)
 
@@ -66,6 +67,23 @@ func (s *userService) CheckUsernameExists(ctx context.Context, username string) 
 		return true, nil
 	}
 	return false, nil
+}
+
+func (s *userService) GetUserByID(ctx context.Context, userID string) (*models.User, error) {
+	uID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return nil, apperr.InternalServerError("invalid user ID in token", err)
+	}
+
+	user, err := s.userRepo.FindByID(ctx, uID)
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to fetch user", err)
+	}
+	if user == nil {
+		return nil, apperr.NotFound("user not found", nil)
+	}
+
+	return user, nil
 }
 
 func (s *userService) SignUp(ctx context.Context, req models.SignUpRequest) error {

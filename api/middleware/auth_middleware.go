@@ -48,7 +48,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		userID, ok := claims["user_id"].(string)
+		userID, ok := claims["sub"].(string)
 		if !ok {
 			c.Error(apperr.Unauthorized("invalid user ID in token", nil))
 			c.Abort()

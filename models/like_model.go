@@ -11,6 +11,6 @@ import (
 type Like struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty"`
 	UserID    primitive.ObjectID `bson:"user_id"`
-	FoodID    primitive.ObjectID `bson:"meeting_id"`
+	FoodID    primitive.ObjectID `bson:"food_id"`
 	CreatedAt time.Time          `bson:"created_at"`
 }
