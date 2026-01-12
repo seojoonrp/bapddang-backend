@@ -50,26 +50,20 @@ func (h *FoodHandler) CreateStandardFoods(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"standard_foods": newFoods})
 }
 
-func (h *FoodHandler) FindOrCreateCustomFood(c *gin.Context) {
-	var req models.CreateCustomFoodRequest
+func (h *FoodHandler) ResolveFoodItems(c *gin.Context) {
+	var req models.ResolveFoodItemsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Error(apperr.BadRequest("invalid request body", err))
 		return
 	}
 
-	userID, err := GetUserID(c)
+	foodItems, err := h.foodService.ResolveFoodItems(c, req.Names)
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	newFood, err := h.foodService.FindOrCreateCustom(c, req, userID)
-	if err != nil {
-		c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"custom_food": newFood})
+	c.JSON(http.StatusOK, gin.H{"food_items": foodItems})
 }
 
 func (h *FoodHandler) GetMainFeedFoods(c *gin.Context) {

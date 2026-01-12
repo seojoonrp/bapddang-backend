@@ -19,13 +19,13 @@ type FoodRepository interface {
 	FindCustomByName(ctx context.Context, name string) (*models.CustomFood, error)
 
 	CreateStandards(ctx context.Context, foods []interface{}) error
-	CreateCustom(ctx context.Context, food *models.CustomFood) error
-	AddUserToCustom(ctx context.Context, foodID, userID primitive.ObjectID) (bool, error)
+	CreateCustom(ctx context.Context, food models.CustomFood) error
 
 	GetRandomStandard(ctx context.Context, speed string, count int) ([]*models.StandardFood, error)
 
 	UpdateCreatedReviewStats(ctx context.Context, foodID []primitive.ObjectID, rating int) error
 	UpdateModifiedReviewStats(ctx context.Context, foodID []primitive.ObjectID, oldRating, newRating int) error
+	IncrementCustomFoodReviewCount(ctx context.Context, foodID primitive.ObjectID) (bool, error)
 
 	IncrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error
 	DecrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error
@@ -103,26 +103,9 @@ func (r *foodRepository) CreateStandards(ctx context.Context, foods []interface{
 	return err
 }
 
-func (r *foodRepository) CreateCustom(ctx context.Context, food *models.CustomFood) error {
+func (r *foodRepository) CreateCustom(ctx context.Context, food models.CustomFood) error {
 	_, err := r.customFoodCollection.InsertOne(ctx, food)
 	return err
-}
-
-// 이미 있으면 true, 없으면 false
-func (r *foodRepository) AddUserToCustom(ctx context.Context, foodID, userID primitive.ObjectID) (bool, error) {
-	filter := bson.M{"_id": foodID}
-	update := bson.M{"$addToSet": bson.M{"using_user_ids": userID}}
-	result, err := r.customFoodCollection.UpdateOne(ctx, filter, update)
-	if err != nil {
-		return false, err
-	}
-	if result.MatchedCount == 0 {
-		return false, errors.New("custom food not found")
-	}
-	if result.ModifiedCount == 0 {
-		return true, nil
-	}
-	return false, nil
 }
 
 func (r *foodRepository) GetRandomStandard(ctx context.Context, speed string, count int) ([]*models.StandardFood, error) {
@@ -179,6 +162,21 @@ func (r *foodRepository) UpdateModifiedReviewStats(ctx context.Context, foodIDs 
 	update := bson.M{"$inc": incMap}
 	_, err := r.standardFoodCollection.UpdateMany(ctx, filter, update)
 	return err
+}
+
+func (r *foodRepository) IncrementCustomFoodReviewCount(ctx context.Context, foodID primitive.ObjectID) (bool, error) {
+	result, err := r.customFoodCollection.UpdateOne(
+		ctx,
+		bson.M{"_id": foodID},
+		bson.M{"$inc": bson.M{"review_count": 1}},
+	)
+	if err != nil {
+		return false, err
+	}
+	if result.MatchedCount == 0 {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (r *foodRepository) IncrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error {

@@ -12,13 +12,12 @@ import (
 	"github.com/seojoonrp/bapddang-server/apperr"
 	"github.com/seojoonrp/bapddang-server/models"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type FoodService interface {
 	GetStandardByID(ctx context.Context, id string) (*models.StandardFood, error)
 	CreateStandards(ctx context.Context, req []models.CreateStandardFoodRequest) ([]*models.StandardFood, error)
-	FindOrCreateCustom(ctx context.Context, req models.CreateCustomFoodRequest, userID string) (*models.CustomFood, error)
+	ResolveFoodItems(ctx context.Context, names []string) ([]models.ReviewFoodItem, error)
 
 	GetMainFeedFoods(speed string, foodCount int) ([]*models.StandardFood, error)
 
@@ -82,41 +81,63 @@ func (s *foodService) CreateStandards(ctx context.Context, req []models.CreateSt
 	return newFoods, nil
 }
 
-func (s *foodService) FindOrCreateCustom(ctx context.Context, req models.CreateCustomFoodRequest, userID string) (*models.CustomFood, error) {
-	uID, err := primitive.ObjectIDFromHex(userID)
+func (s *foodService) findOrCreateCustom(ctx context.Context, name string) (*models.CustomFood, error) {
+	existingFood, err := s.foodRepo.FindCustomByName(ctx, name)
 	if err != nil {
-		return nil, apperr.InternalServerError("invalid user ID in token", err)
+		return nil, apperr.InternalServerError("failed to fetch custom food", err)
 	}
-
-	existingFood, err := s.foodRepo.FindCustomByName(ctx, req.Name)
-	if err == mongo.ErrNoDocuments {
-		newFood := &models.CustomFood{
-			ID:           primitive.NewObjectID(),
-			Name:         req.Name,
-			UsingUserIDs: []primitive.ObjectID{uID},
-			CreatedAt:    time.Now(),
+	if existingFood == nil {
+		newFood := models.CustomFood{
+			ID:          primitive.NewObjectID(),
+			Name:        name,
+			ReviewCount: 0,
+			CreatedAt:   time.Now(),
 		}
 		err := s.foodRepo.CreateCustom(ctx, newFood)
 		if err != nil {
 			return nil, apperr.InternalServerError("failed to create custom food", err)
 		}
-
-		return newFood, nil
-	}
-	if err != nil {
-		return nil, apperr.InternalServerError("failed to fetch custom food", err)
+		return &newFood, nil
 	}
 
-	existed, err := s.foodRepo.AddUserToCustom(ctx, existingFood.ID, uID)
-	if err != nil {
-		return nil, apperr.InternalServerError("failed to add user to custom food", err)
-	}
-	if existed {
-		return existingFood, nil
-	}
-
-	existingFood.UsingUserIDs = append(existingFood.UsingUserIDs, uID)
 	return existingFood, nil
+}
+
+func (s *foodService) ResolveFoodItems(ctx context.Context, names []string) ([]models.ReviewFoodItem, error) {
+	if len(names) == 0 {
+		return nil, apperr.BadRequest("names list cannot be empty", nil)
+	}
+
+	var result []models.ReviewFoodItem
+
+	for _, name := range names {
+		standardFood, err := s.foodRepo.FindStandardByName(ctx, name)
+		if err != nil {
+			return nil, apperr.InternalServerError("failed to fetch standard food by name", err)
+		}
+
+		if standardFood != nil {
+			result = append(result, models.ReviewFoodItem{
+				FoodID:   standardFood.ID.Hex(),
+				FoodName: standardFood.Name,
+				Type:     models.FoodTypeStandard,
+			})
+			continue
+		}
+
+		customFood, err := s.findOrCreateCustom(ctx, name)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, models.ReviewFoodItem{
+			FoodID:   customFood.ID.Hex(),
+			FoodName: customFood.Name,
+			Type:     models.FoodTypeCustom,
+		})
+	}
+
+	return result, nil
 }
 
 func (s *foodService) GetMainFeedFoods(speed string, foodCount int) ([]*models.StandardFood, error) {

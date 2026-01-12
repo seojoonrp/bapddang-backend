@@ -9,11 +9,6 @@ import (
 )
 
 const (
-	FoodTypeStandard = "standard"
-	FoodTypeCustom   = "custom"
-)
-
-const (
 	SpeedFast = "fast"
 	SpeedSlow = "slow"
 )
@@ -39,12 +34,12 @@ type CreateStandardFoodRequest struct {
 }
 
 type CustomFood struct {
-	ID           primitive.ObjectID   `bson:"_id, omitempty" json:"id"`
-	Name         string               `bson:"name" json:"name" binding:"required"`
-	UsingUserIDs []primitive.ObjectID `bson:"using_user_ids" json:"usingUserIDs" binding:"required"`
-	CreatedAt    time.Time            `bson:"created_at" json:"createdAt"`
+	ID          primitive.ObjectID `bson:"_id, omitempty" json:"id"`
+	Name        string             `bson:"name" json:"name" binding:"required"`
+	ReviewCount int                `bson:"review_count" json:"reviewCount"`
+	CreatedAt   time.Time          `bson:"created_at" json:"createdAt"`
 }
 
-type CreateCustomFoodRequest struct {
-	Name string `json:"name"`
+type ResolveFoodItemsRequest struct {
+	Names []string `json:"names" binding:"required"`
 }
