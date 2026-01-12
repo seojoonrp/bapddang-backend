@@ -36,7 +36,6 @@ func (r *reviewRepository) UpdateReview(ctx context.Context, review *models.Revi
 	update := bson.M{
 		"$set": bson.M{
 			"meal_time":  review.MealTime,
-			"tags":       review.Tags,
 			"image_url":  review.ImageURL,
 			"comment":    review.Comment,
 			"rating":     review.Rating,

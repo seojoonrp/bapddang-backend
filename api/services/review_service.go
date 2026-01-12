@@ -51,7 +51,6 @@ func (s *reviewService) CreateReview(ctx context.Context, req models.CreateRevie
 		Foods:     req.Foods,
 		Speed:     req.Speed,
 		MealTime:  req.MealTime,
-		Tags:      req.Tags,
 		ImageURL:  req.ImageURL,
 		Comment:   req.Comment,
 		Rating:    req.Rating,
@@ -66,6 +65,8 @@ func (s *reviewService) CreateReview(ctx context.Context, req models.CreateRevie
 	}
 
 	var standardFoodIDs []primitive.ObjectID
+	var customFoodIDs []primitive.ObjectID
+
 	for _, foodItem := range newReview.Foods {
 		if foodItem.Type == models.FoodTypeStandard {
 			foodID, err := primitive.ObjectIDFromHex(foodItem.FoodID)
@@ -74,12 +75,25 @@ func (s *reviewService) CreateReview(ctx context.Context, req models.CreateRevie
 			}
 			standardFoodIDs = append(standardFoodIDs, foodID)
 		}
+		if foodItem.Type == models.FoodTypeCustom {
+			foodID, err := primitive.ObjectIDFromHex(foodItem.FoodID)
+			if err != nil {
+				continue
+			}
+			customFoodIDs = append(customFoodIDs, foodID)
+		}
 	}
 
 	if len(standardFoodIDs) > 0 {
-		err = s.foodRepo.UpdateCreatedReviewStats(ctx, standardFoodIDs, newReview.Rating)
+		err = s.foodRepo.UpdateStandardCreatedReviewStats(ctx, standardFoodIDs, newReview.Rating)
 		if err != nil {
 			return nil, apperr.InternalServerError("failed to update food review stats", err)
+		}
+	}
+	if len(customFoodIDs) > 0 {
+		err = s.foodRepo.UpdateCustomCreatedReviewStats(ctx, customFoodIDs)
+		if err != nil {
+			return nil, apperr.InternalServerError("failed to update custom food review stats", err)
 		}
 	}
 
@@ -101,27 +115,16 @@ func (s *reviewService) UpdateReview(ctx context.Context, reviewID string, userI
 		return nil, apperr.Unauthorized("you are not the owner of this review", nil)
 	}
 
-	if req.Rating != nil {
-		if *req.Rating <= 0 || *req.Rating > 5 {
-			return nil, apperr.BadRequest("rating must be between 1 and 5", nil)
-		}
+	if req.Rating <= 0 || req.Rating > 5 {
+		return nil, apperr.BadRequest("rating must be in between 1 and 5", nil)
 	}
 
 	oldRating := review.Rating
 
 	review.MealTime = req.MealTime
-	if req.Tags != nil {
-		review.Tags = *req.Tags
-	}
-	if req.ImageURL != nil {
-		review.ImageURL = *req.ImageURL
-	}
-	if req.Comment != nil {
-		review.Comment = *req.Comment
-	}
-	if req.Rating != nil {
-		review.Rating = *req.Rating
-	}
+	review.ImageURL = req.ImageURL
+	review.Comment = req.Comment
+	review.Rating = req.Rating
 	review.UpdatedAt = time.Now()
 
 	err = s.reviewRepo.UpdateReview(ctx, review)
@@ -141,7 +144,7 @@ func (s *reviewService) UpdateReview(ctx context.Context, reviewID string, userI
 	}
 
 	if len(standardFoodIDs) > 0 && oldRating != review.Rating {
-		err = s.foodRepo.UpdateModifiedReviewStats(ctx, standardFoodIDs, oldRating, review.Rating)
+		err = s.foodRepo.UpdateStandardModifiedReviewStats(ctx, standardFoodIDs, oldRating, review.Rating)
 		if err != nil {
 			return nil, apperr.InternalServerError("failed to update food review stats", err)
 		}
