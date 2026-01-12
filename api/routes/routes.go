@@ -63,8 +63,8 @@ func SetupRoutes(
 		reviews := apiV1.Group("/reviews")
 		reviews.Use(middleware.AuthMiddleware())
 		{
-
-			reviews.POST("/", reviewHandler.CreateReview)
+			reviews.POST("", reviewHandler.CreateReview)
+			reviews.PATCH("/:reviewID", reviewHandler.UpdateReview)
 		}
 
 		adminRoutes := apiV1.Group("/admin") // no protection for now
