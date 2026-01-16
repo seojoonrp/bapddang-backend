@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/seojoonrp/bapddang-server/apperr"
+	"github.com/seojoonrp/bapddang-server/response"
 )
 
 func ErrorHandler() gin.HandlerFunc {
@@ -21,10 +22,22 @@ func ErrorHandler() gin.HandlerFunc {
 				if appErr.Raw != nil {
 					fmt.Printf("[ERROR] %v\n", appErr.Raw)
 				}
-				c.JSON(appErr.StatusCode, gin.H{"error": appErr.Message})
+				c.JSON(appErr.StatusCode, response.Response{
+					Success: false,
+					Error: &response.ErrorDetail{
+						Code:    appErr.Code,
+						Message: appErr.Message,
+					},
+				})
 			} else {
 				fmt.Printf("[UNKNOWN ERROR] %v\n", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+				c.JSON(http.StatusInternalServerError, response.Response{
+					Success: false,
+					Error: &response.ErrorDetail{
+						Code:    "INTERNAL_SERVER_ERROR",
+						Message: "An unexpected error occurred.",
+					},
+				})
 			}
 		}
 	}

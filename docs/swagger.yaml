@@ -1,0 +1,58 @@
+basePath: /api/v1
+definitions:
+  response.ErrorDetail:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    type: object
+  response.Response:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/response.ErrorDetail'
+      success:
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: 밥땡의 백엔드 서버 API 명세서
+  title: Bobttaeng API Server
+  version: "1.0"
+paths:
+  /foods/{foodID}/likes:
+    post:
+      consumes:
+      - application/json
+      description: 특정 음식에 좋아요를 표시한다.
+      parameters:
+      - description: 음식 ID
+        in: path
+        name: foodID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 음식 좋아요
+      tags:
+      - Like
+securityDefinitions:
+  BearerAuth:
+    description: '"Bearer {token}" 형식으로 JWT 토큰을 전달'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

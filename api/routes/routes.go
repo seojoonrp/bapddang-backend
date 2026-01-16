@@ -8,6 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/seojoonrp/bapddang-server/api/handlers"
 	"github.com/seojoonrp/bapddang-server/api/middleware"
+	_ "github.com/seojoonrp/bapddang-server/docs"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -19,6 +22,8 @@ func SetupRoutes(
 	reviewHandler *handlers.ReviewHandler,
 	likeHandler *handlers.LikeHandler,
 ) {
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	apiV1 := router.Group("/api/v1")
 	{
 		apiV1.GET("/ping", func(c *gin.Context) {
