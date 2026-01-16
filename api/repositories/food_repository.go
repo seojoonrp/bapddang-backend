@@ -21,7 +21,7 @@ type FoodRepository interface {
 	CreateStandards(ctx context.Context, foods []interface{}) error
 	CreateCustom(ctx context.Context, food models.CustomFood) error
 
-	GetRandomStandard(ctx context.Context, speed string, count int) ([]*models.StandardFood, error)
+	GetRandomStandards(ctx context.Context, speed string, count int) ([]models.StandardFood, error)
 
 	UpdateStandardCreatedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, rating int) error
 	UpdateStandardModifiedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, oldRating, newRating int) error
@@ -108,7 +108,7 @@ func (r *foodRepository) CreateCustom(ctx context.Context, food models.CustomFoo
 	return err
 }
 
-func (r *foodRepository) GetRandomStandard(ctx context.Context, speed string, count int) ([]*models.StandardFood, error) {
+func (r *foodRepository) GetRandomStandards(ctx context.Context, speed string, count int) ([]models.StandardFood, error) {
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: bson.M{"speed": speed}}},
 		{{Key: "$sample", Value: bson.M{"size": count}}},
@@ -120,13 +120,13 @@ func (r *foodRepository) GetRandomStandard(ctx context.Context, speed string, co
 	}
 	defer cursor.Close(ctx)
 
-	var foods []*models.StandardFood
+	var foods []models.StandardFood
 	for cursor.Next(ctx) {
 		var food models.StandardFood
 		if err := cursor.Decode(&food); err != nil {
 			return nil, err
 		}
-		foods = append(foods, &food)
+		foods = append(foods, food)
 	}
 
 	if err := cursor.Err(); err != nil {

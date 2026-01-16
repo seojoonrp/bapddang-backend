@@ -1,7 +1,5 @@
 // api/handlers/review_handler.go
 
-// 리뷰 관련 로직(리뷰 생성, 수정, 삭제, 조회 등)을 처리하는 API 핸들러
-
 package handlers
 
 import (

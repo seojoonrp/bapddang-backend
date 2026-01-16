@@ -67,6 +67,12 @@ func (h *FoodHandler) ResolveFoodItems(c *gin.Context) {
 }
 
 func (h *FoodHandler) GetMainFeedFoods(c *gin.Context) {
+	userID, err := GetUserID(c)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
 	speed := c.Query("speed")
 
 	foodCountStr := c.Query("count")
@@ -76,11 +82,14 @@ func (h *FoodHandler) GetMainFeedFoods(c *gin.Context) {
 		return
 	}
 
-	selectedFoods, err := h.foodService.GetMainFeedFoods(speed, foodCount)
+	result, err := h.foodService.GetMainFeedFoods(c, userID, speed, foodCount)
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"foods": selectedFoods})
+	c.JSON(http.StatusOK, gin.H{
+		"foods": result,
+		"count": len(result),
+	})
 }

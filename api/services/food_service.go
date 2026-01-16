@@ -19,7 +19,7 @@ type FoodService interface {
 	CreateStandards(ctx context.Context, req []models.CreateStandardFoodRequest) ([]*models.StandardFood, error)
 	ResolveFoodItems(ctx context.Context, names []string) ([]models.ReviewFoodItem, error)
 
-	GetMainFeedFoods(speed string, foodCount int) ([]*models.StandardFood, error)
+	GetMainFeedFoods(ctx context.Context, userID string, speed string, foodCount int) ([]models.MainFeedResponse, error)
 
 	IncrementLikeCount(ctx context.Context, foodID string) error
 	DecrementLikeCount(ctx context.Context, foodID string) error
@@ -27,12 +27,14 @@ type FoodService interface {
 
 type foodService struct {
 	foodRepo  repositories.FoodRepository
+	likeRepo  repositories.LikeRepository
 	cacheLock sync.RWMutex
 }
 
-func NewFoodService(ctx context.Context, foodRepo repositories.FoodRepository) FoodService {
+func NewFoodService(ctx context.Context, fr repositories.FoodRepository, lr repositories.LikeRepository) FoodService {
 	return &foodService{
-		foodRepo: foodRepo,
+		foodRepo: fr,
+		likeRepo: lr,
 	}
 }
 
@@ -140,7 +142,12 @@ func (s *foodService) ResolveFoodItems(ctx context.Context, names []string) ([]m
 	return result, nil
 }
 
-func (s *foodService) GetMainFeedFoods(speed string, foodCount int) ([]*models.StandardFood, error) {
+func (s *foodService) GetMainFeedFoods(ctx context.Context, userID string, speed string, foodCount int) ([]models.MainFeedResponse, error) {
+	uID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return nil, apperr.InternalServerError("invalid user ID in token", err)
+	}
+
 	if foodCount <= 0 {
 		return nil, apperr.BadRequest("food count must be positive", nil)
 	}
@@ -154,12 +161,30 @@ func (s *foodService) GetMainFeedFoods(speed string, foodCount int) ([]*models.S
 	}
 
 	// 임시로 그냥 랜덤 뽑기 설정
-	foods, err := s.foodRepo.GetRandomStandard(context.Background(), speed, foodCount)
+	foods, err := s.foodRepo.GetRandomStandards(ctx, speed, foodCount)
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to get main feed foods", err)
 	}
 
-	return foods, nil
+	foodIDs := make([]primitive.ObjectID, 0, len(foods))
+	for _, food := range foods {
+		foodIDs = append(foodIDs, food.ID)
+	}
+
+	likedMap, err := s.likeRepo.CheckLikedStatus(ctx, uID, foodIDs)
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to check liked status", err)
+	}
+
+	responses := make([]models.MainFeedResponse, 0, len(foods))
+	for _, food := range foods {
+		responses = append(responses, models.MainFeedResponse{
+			Food:    food,
+			IsLiked: likedMap[food.ID],
+		})
+	}
+
+	return responses, nil
 }
 
 func (s *foodService) IncrementLikeCount(ctx context.Context, foodID string) error {

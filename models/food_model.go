@@ -40,6 +40,11 @@ type CustomFood struct {
 	CreatedAt   time.Time          `bson:"created_at" json:"createdAt"`
 }
 
+type MainFeedResponse struct {
+	Food    StandardFood `json:"food"`
+	IsLiked bool         `json:"isLiked"`
+}
+
 type ResolveFoodItemsRequest struct {
 	Names []string `json:"names" binding:"required"`
 }
