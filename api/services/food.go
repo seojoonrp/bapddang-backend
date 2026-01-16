@@ -1,4 +1,4 @@
-// api/services/food_service.go
+// api/services/food.go
 
 package services
 

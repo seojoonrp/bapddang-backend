@@ -1,4 +1,4 @@
-// api/handlers/food_handler.go
+// api/handlers/food.go
 
 package handlers
 

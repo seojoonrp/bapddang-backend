@@ -1,4 +1,4 @@
-// models/common_model.go
+// models/common.go
 
 package models
 

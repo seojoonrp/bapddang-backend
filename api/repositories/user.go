@@ -1,4 +1,4 @@
-// api/repositories/user_repo.go
+// api/repositories/user.go
 
 package repositories
 

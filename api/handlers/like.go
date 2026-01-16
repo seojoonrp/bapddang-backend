@@ -1,4 +1,4 @@
-// api/handlers/like_handler.go
+// api/handlers/like.go
 
 package handlers
 

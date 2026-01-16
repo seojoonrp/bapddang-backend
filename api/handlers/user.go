@@ -1,4 +1,4 @@
-// api/handlers/user_handler.go
+// api/handlers/user.go
 
 package handlers
 

@@ -1,4 +1,4 @@
-// models/like_model.go
+// models/like.go
 
 package models
 

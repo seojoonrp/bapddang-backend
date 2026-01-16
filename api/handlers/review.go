@@ -1,4 +1,4 @@
-// api/handlers/review_handler.go
+// api/handlers/review.go
 
 package handlers
 

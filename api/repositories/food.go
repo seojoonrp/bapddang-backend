@@ -1,4 +1,4 @@
-// api/repositories/food_repo.go
+// api/repositories/food.go
 
 package repositories
 

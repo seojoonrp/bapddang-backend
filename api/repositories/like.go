@@ -1,4 +1,4 @@
-// api/repositories/like_repo.go
+// api/repositories/like.go
 
 package repositories
 

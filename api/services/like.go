@@ -1,4 +1,4 @@
-// api/services/like_service.go
+// api/services/like.go
 
 package services
 

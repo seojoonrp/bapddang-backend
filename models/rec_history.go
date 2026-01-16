@@ -1,4 +1,4 @@
-// models/rec_history_model.go
+// models/rec_history.go
 
 package models
 

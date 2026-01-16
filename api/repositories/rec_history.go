@@ -1,4 +1,4 @@
-// api/repositories/rec_history_repo.go
+// api/repositories/rec_history.go
 
 package repositories
 

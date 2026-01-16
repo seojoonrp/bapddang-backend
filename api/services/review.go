@@ -1,4 +1,4 @@
-// api/services/review_service.go
+// api/services/review.go
 
 package services
 

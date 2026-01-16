@@ -1,4 +1,4 @@
-// api/services/s3_service.go
+// api/services/s3.go
 
 // TODO. 미완임
 

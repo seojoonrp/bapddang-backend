@@ -1,4 +1,4 @@
-// api/repositories/review_repo.go
+// api/repositories/review.go
 
 package repositories
 

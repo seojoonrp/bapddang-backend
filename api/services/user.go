@@ -1,4 +1,4 @@
-// api/services/user_service.go
+// api/services/user.go
 
 package services
 
