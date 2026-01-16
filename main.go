@@ -19,7 +19,6 @@ import (
 // @title Bobttaeng API Server
 // @version 1.0
 // @description 밥땡의 백엔드 서버 API 명세서
-// @host localhost:8080
 // @BasePath /api/v1
 
 // @securityDefinitions.apikey BearerAuth
