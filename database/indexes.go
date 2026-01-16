@@ -21,6 +21,7 @@ func InitIndexes(client *mongo.Client) {
 	initCustomFoodIndexes(db.Collection("custom_foods"))
 	initReviewIndexes(db.Collection("reviews"))
 	initLikeIndexes(db.Collection("likes"))
+	initRecHistoryIndexes(db.Collection("recommendation_histories"))
 }
 
 func initUserIndexes(coll *mongo.Collection) {
@@ -71,6 +72,21 @@ func initLikeIndexes(coll *mongo.Collection) {
 	createIndex(coll, mongo.IndexModel{
 		Keys:    bson.D{{Key: "user_id", Value: 1}},
 		Options: options.Index().SetName("idx_like_user_id"),
+	})
+}
+
+func initRecHistoryIndexes(coll *mongo.Collection) {
+	createIndex(coll, mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "user_id", Value: 1},
+			{Key: "created_at", Value: -1},
+		},
+		Options: options.Index().SetName("idx_user_createdat_rec_history"),
+	})
+
+	createIndex(coll, mongo.IndexModel{
+		Keys:    bson.D{{Key: "created_at", Value: 1}},
+		Options: options.Index().SetExpireAfterSeconds(60 * 60 * 24 * 7).SetName("idx_rec_history_ttl"),
 	})
 }
 

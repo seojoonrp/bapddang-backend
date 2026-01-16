@@ -5,6 +5,8 @@ package services
 import (
 	"context"
 	"log"
+	"math/rand"
+	"sort"
 	"sync"
 	"time"
 
@@ -26,15 +28,22 @@ type FoodService interface {
 }
 
 type foodService struct {
-	foodRepo  repositories.FoodRepository
-	likeRepo  repositories.LikeRepository
-	cacheLock sync.RWMutex
+	foodRepo       repositories.FoodRepository
+	likeRepo       repositories.LikeRepository
+	recHistoryRepo repositories.RecHistoryRepository
+	cacheLock      sync.RWMutex
 }
 
-func NewFoodService(ctx context.Context, fr repositories.FoodRepository, lr repositories.LikeRepository) FoodService {
+func NewFoodService(
+	ctx context.Context,
+	fr repositories.FoodRepository,
+	lr repositories.LikeRepository,
+	rhr repositories.RecHistoryRepository,
+) FoodService {
 	return &foodService{
-		foodRepo: fr,
-		likeRepo: lr,
+		foodRepo:       fr,
+		likeRepo:       lr,
+		recHistoryRepo: rhr,
 	}
 }
 
@@ -148,12 +157,8 @@ func (s *foodService) GetMainFeedFoods(ctx context.Context, userID string, speed
 		return nil, apperr.InternalServerError("invalid user ID in token", err)
 	}
 
-	if foodCount <= 0 {
-		return nil, apperr.BadRequest("food count must be positive", nil)
-	}
-	if foodCount > 10 {
-		log.Println("[WARNING] Someone requested too many foods for main feed:", foodCount)
-		foodCount = 10
+	if foodCount <= 0 || foodCount > 10 {
+		return nil, apperr.BadRequest("invalid food count", nil)
 	}
 
 	if speed != models.SpeedFast && speed != models.SpeedSlow {
@@ -161,9 +166,9 @@ func (s *foodService) GetMainFeedFoods(ctx context.Context, userID string, speed
 	}
 
 	// 임시로 그냥 랜덤 뽑기 설정
-	foods, err := s.foodRepo.GetRandomStandards(ctx, speed, foodCount)
+	foods, err := s.getRecommendedFoods(ctx, uID, speed, foodCount)
 	if err != nil {
-		return nil, apperr.InternalServerError("failed to get main feed foods", err)
+		return nil, err
 	}
 
 	foodIDs := make([]primitive.ObjectID, 0, len(foods))
@@ -185,6 +190,99 @@ func (s *foodService) GetMainFeedFoods(ctx context.Context, userID string, speed
 	}
 
 	return responses, nil
+}
+
+func (s *foodService) getRecommendedFoods(ctx context.Context, userID primitive.ObjectID, speed string, foodCount int) ([]models.StandardFood, error) {
+	candidateCount := foodCount * 5
+	candidates, err := s.foodRepo.GetRandomStandards(ctx, speed, candidateCount)
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to get candidate foods", err)
+	}
+
+	historyMap, err := s.recHistoryRepo.GetRecentFoodIDsMap(ctx, userID, 3)
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to get recommendation history", err)
+	}
+
+	type scoredFood struct {
+		food  models.StandardFood
+		score float64
+	}
+	scoredList := make([]scoredFood, 0, len(candidates))
+	now := time.Now()
+
+	for _, food := range candidates {
+		weight := 1.0
+		if lastSeen, ok := historyMap[food.ID]; ok {
+			hoursSinceSeen := now.Sub(lastSeen).Hours()
+			if hoursSinceSeen < 1 {
+				weight = 0.01
+			} else if hoursSinceSeen < 18 {
+				weight = 0.1
+			} else if hoursSinceSeen < 42 {
+				weight = 0.4
+			} else {
+				weight = 0.8
+			}
+		}
+
+		scoredList = append(scoredList, scoredFood{
+			food:  food,
+			score: weight * (0.8 + rand.Float64()*0.4),
+		})
+	}
+
+	sort.Slice(scoredList, func(i, j int) bool {
+		return scoredList[i].score > scoredList[j].score
+	})
+
+	var finalFoods []models.StandardFood
+	usedParents := make(map[string]bool)
+
+	for _, sf := range scoredList {
+		if len(finalFoods) >= foodCount {
+			break
+		}
+
+		isOverlap := false
+		for _, parent := range sf.food.Parents {
+			if usedParents[parent] {
+				isOverlap = true
+				break
+			}
+		}
+
+		if !isOverlap {
+			finalFoods = append(finalFoods, sf.food)
+			for _, parent := range sf.food.Parents {
+				usedParents[parent] = true
+			}
+
+			log.Printf("[REC_DEBUG] Selected: %s (Score: %.3f, Parents: %v)",
+				sf.food.Name, sf.score, sf.food.Parents)
+		}
+	}
+
+	finalIDs := make([]primitive.ObjectID, 0, len(finalFoods))
+	for _, food := range finalFoods {
+		finalIDs = append(finalIDs, food.ID)
+	}
+	newHistory := models.RecHistory{
+		ID:        primitive.NewObjectID(),
+		UserID:    userID,
+		FoodIDs:   finalIDs,
+		CreatedAt: now,
+	}
+
+	go func(h models.RecHistory) {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.recHistoryRepo.SaveHistory(bgCtx, h); err != nil {
+			log.Printf("[WARNING] failed to save recommendation history: %v", err)
+		}
+	}(newHistory)
+
+	return finalFoods, nil
 }
 
 func (s *foodService) IncrementLikeCount(ctx context.Context, foodID string) error {
