@@ -28,6 +28,8 @@ func ConnectDB() (*mongo.Client, error) {
 		return nil, err
 	}
 
+	InitIndexes(client)
+
 	log.Println("Successfully connected to MongoDB.")
 	return client, nil
 }

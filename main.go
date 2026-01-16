@@ -39,7 +39,7 @@ func main() {
 	likeRepository := repositories.NewLikeRepository(db)
 
 	userService := services.NewUserService(userRepository, foodRepository)
-	foodService := services.NewFoodService(context.Background(), foodRepository)
+	foodService := services.NewFoodService(context.Background(), foodRepository, likeRepository)
 	reviewService := services.NewReviewService(reviewRepository, foodRepository)
 	likeService := services.NewLikeService(likeRepository, foodRepository)
 
