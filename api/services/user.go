@@ -123,9 +123,13 @@ func (s *userService) SignUp(ctx context.Context, req models.SignUpRequest) erro
 }
 
 func (s *userService) Login(ctx context.Context, req models.LoginRequest) (string, *models.User, error) {
-	user, usernameErr := s.userRepo.FindByUsername(ctx, req.Username)
-	passwordErr := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
-	if user == nil || usernameErr != nil || passwordErr != nil {
+	user, err := s.userRepo.FindByUsername(ctx, req.Username)
+	if err != nil || user == nil {
+		return "", nil, apperr.Unauthorized("invalid username or password", nil)
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	if err != nil {
 		return "", nil, apperr.Unauthorized("invalid username or password", nil)
 	}
 

@@ -55,7 +55,7 @@ func SetupRoutes(
 				protectedFoods.POST("/:foodID/likes", likeHandler.LikeFood)
 				protectedFoods.DELETE("/:foodID/likes", likeHandler.UnlikeFood)
 
-				foods.GET("/main-feed", foodHandler.GetMainFeedFoods)
+				protectedFoods.GET("/main-feed", foodHandler.GetMainFeedFoods)
 
 				protectedFoods.POST("/resolve", foodHandler.ResolveFoodItems)
 			}
