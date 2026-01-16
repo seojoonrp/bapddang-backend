@@ -35,3 +35,25 @@ type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
+
+type GoogleLoginRequest struct {
+	IDToken string `json:"idToken" binding:"required"`
+}
+
+type KakaoLoginRequest struct {
+	AccessToken string `json:"accessToken" binding:"required"`
+}
+
+type AppleLoginRequest struct {
+	IdentityToken string `json:"identityToken" binding:"required"`
+	FullName      struct {
+		GivenName  string `json:"givenName"`
+		FamilyName string `json:"familyName"`
+	} `json:"fullName"`
+}
+
+type LoginResponse struct {
+	AccessToken string `json:"accessToken"`
+	User        *User  `json:"user"`
+	IsNewUser   bool   `json:"isNewUser"`
+}

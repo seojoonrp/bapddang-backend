@@ -10,6 +10,7 @@ import (
 	"github.com/seojoonrp/bapddang-server/api/services"
 	"github.com/seojoonrp/bapddang-server/apperr"
 	"github.com/seojoonrp/bapddang-server/models"
+	"github.com/seojoonrp/bapddang-server/response"
 )
 
 type ReviewHandler struct {
@@ -24,6 +25,17 @@ func NewReviewHandler(reviewService services.ReviewService, foodService services
 	}
 }
 
+// @Summary 리뷰 생성
+// @Description 새로운 리뷰를 생성한다.
+// @Tags Review
+// @Accept json
+// @Produce json
+// @Param review body models.CreateReviewRequest true "리뷰 정보"
+// @Success 201 {object} response.Response{data=models.Review} "리뷰 생성 성공"
+// @Failure 400 {object} response.Response "잘못된 요청 본문"
+// @Failure 401 {object} response.Response "인증 실패"
+// @Security BearerAuth
+// @Router /reviews [post]
 func (h *ReviewHandler) CreateReview(c *gin.Context) {
 	var req models.CreateReviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -43,9 +55,23 @@ func (h *ReviewHandler) CreateReview(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"review": newReview})
+	c.JSON(http.StatusCreated, response.Response{
+		Success: true,
+		Data:    newReview,
+	})
 }
 
+// @Summary 리뷰 수정
+// @Description 기존 리뷰 정보를 수정한다.
+// @Tags Review
+// @Accept json
+// @Produce json
+// @Param reviewID path string true "리뷰 ID"
+// @Param review body models.UpdateReviewRequest true "리뷰 수정 정보"
+// @Success 200 {object} response.Response{data=models.Review} "리뷰 수정 성공"
+// @Failure 403 {object} response.Response "수정 권한 없음"
+// @Security BearerAuth
+// @Router /reviews/{reviewID} [patch]
 func (h *ReviewHandler) UpdateReview(c *gin.Context) {
 	var req models.UpdateReviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -67,9 +93,21 @@ func (h *ReviewHandler) UpdateReview(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"review": updatedReview})
+	c.JSON(http.StatusOK, response.Response{
+		Success: true,
+		Data:    updatedReview,
+	})
 }
 
+// @Summary 날짜별 리뷰 조회
+// @Description 특정 날짜에 작성한 리뷰 목록을 조회한다.
+// @Tags Review
+// @Accept json
+// @Produce json
+// @Param day query int true "조회할 날짜"
+// @Success 200 {object} response.Response{data=[]models.Review} "리뷰 목록 조회 성공"
+// @Security BearerAuth
+// @Router /users/me/reviews [get]
 func (h *ReviewHandler) GetMyReviewsByDay(c *gin.Context) {
 	userID, err := GetUserID(c)
 	if err != nil {
@@ -90,5 +128,8 @@ func (h *ReviewHandler) GetMyReviewsByDay(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"reviews": reviews})
+	c.JSON(http.StatusOK, response.Response{
+		Success: true,
+		Data:    reviews,
+	})
 }

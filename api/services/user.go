@@ -40,11 +40,11 @@ type UserService interface {
 	CheckUsernameExists(ctx context.Context, username string) (bool, error)
 	GetUserByID(ctx context.Context, userID string) (*models.User, error)
 	SignUp(ctx context.Context, req models.SignUpRequest) error
-	Login(ctx context.Context, input models.LoginRequest) (string, *models.User, error)
+	Login(ctx context.Context, input models.LoginRequest) (models.LoginResponse, error)
 
-	LoginWithGoogle(ctx context.Context, idToken string) (bool, string, *models.User, error)
-	LoginWithKakao(ctx context.Context, accessToken string) (bool, string, *models.User, error)
-	LoginWithApple(ctx context.Context, identityToken string) (bool, string, *models.User, error)
+	LoginWithGoogle(ctx context.Context, idToken string) (models.LoginResponse, error)
+	LoginWithKakao(ctx context.Context, accessToken string) (models.LoginResponse, error)
+	LoginWithApple(ctx context.Context, identityToken string) (models.LoginResponse, error)
 
 	SyncUserDay(ctx context.Context, userID string) error
 }
@@ -122,32 +122,36 @@ func (s *userService) SignUp(ctx context.Context, req models.SignUpRequest) erro
 	return nil
 }
 
-func (s *userService) Login(ctx context.Context, req models.LoginRequest) (string, *models.User, error) {
+func (s *userService) Login(ctx context.Context, req models.LoginRequest) (models.LoginResponse, error) {
 	user, err := s.userRepo.FindByUsername(ctx, req.Username)
 	if err != nil || user == nil {
-		return "", nil, apperr.Unauthorized("invalid username or password", nil)
+		return models.LoginResponse{}, apperr.Unauthorized("invalid username or password", nil)
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
-		return "", nil, apperr.Unauthorized("invalid username or password", nil)
+		return models.LoginResponse{}, apperr.Unauthorized("invalid username or password", nil)
 	}
 
 	token, err := utils.GenerateToken(user.ID.Hex())
 	if err != nil {
-		return "", nil, apperr.InternalServerError("failed to generate token", err)
+		return models.LoginResponse{}, apperr.InternalServerError("failed to generate token", err)
 	}
 
-	return token, user, nil
+	return models.LoginResponse{
+		AccessToken: token,
+		User:        user,
+		IsNewUser:   false,
+	}, nil
 }
 
-func (s *userService) loginWithSocial(ctx context.Context, provider string, socialID string, email string) (bool, string, *models.User, error) {
+func (s *userService) loginWithSocial(ctx context.Context, provider string, socialID string, email string) (models.LoginResponse, error) {
 	targetUsername := utils.GenerateHashUsername(provider, socialID)
 	isNew := false
 
 	user, err := s.userRepo.FindByUsername(ctx, targetUsername)
 	if err != nil {
-		return false, "", nil, apperr.InternalServerError("failed to fetch user", err)
+		return models.LoginResponse{}, apperr.InternalServerError("failed to fetch user", err)
 	}
 
 	if user == nil {
@@ -165,24 +169,28 @@ func (s *userService) loginWithSocial(ctx context.Context, provider string, soci
 		}
 
 		if err := s.userRepo.Create(ctx, user); err != nil {
-			return false, "", nil, apperr.InternalServerError("failed to create user", err)
+			return models.LoginResponse{}, apperr.InternalServerError("failed to create user", err)
 		}
 	}
 
 	signedToken, err := utils.GenerateToken(user.ID.Hex())
 	if err != nil {
-		return false, "", nil, apperr.InternalServerError("failed to generate token", err)
+		return models.LoginResponse{}, apperr.InternalServerError("failed to generate token", err)
 	}
 
-	return isNew, signedToken, user, nil
+	return models.LoginResponse{
+		AccessToken: signedToken,
+		User:        user,
+		IsNewUser:   isNew,
+	}, nil
 }
 
-func (s *userService) LoginWithGoogle(ctx context.Context, idToken string) (bool, string, *models.User, error) {
+func (s *userService) LoginWithGoogle(ctx context.Context, idToken string) (models.LoginResponse, error) {
 	webClientID := config.AppConfig.GoogleWebClientID
 
 	payload, err := idtoken.Validate(context.Background(), idToken, webClientID)
 	if err != nil {
-		return false, "", nil, apperr.Unauthorized("invalid Google ID token", err)
+		return models.LoginResponse{}, apperr.Unauthorized("invalid Google ID token", err)
 	}
 
 	socialID := payload.Subject
@@ -191,19 +199,19 @@ func (s *userService) LoginWithGoogle(ctx context.Context, idToken string) (bool
 	return s.loginWithSocial(ctx, models.LoginMethodGoogle, socialID, email)
 }
 
-func (s *userService) LoginWithKakao(ctx context.Context, accessToken string) (bool, string, *models.User, error) {
+func (s *userService) LoginWithKakao(ctx context.Context, accessToken string) (models.LoginResponse, error) {
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", "https://kapi.kakao.com/v2/user/me", nil)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return false, "", nil, apperr.ServiceUnavailable("kakao api server unreachable", err)
+		return models.LoginResponse{}, apperr.ServiceUnavailable("kakao api server unreachable", err)
 	}
 	if resp.StatusCode == http.StatusUnauthorized {
-		return false, "", nil, apperr.Unauthorized("expired or invalid kakao token", nil)
+		return models.LoginResponse{}, apperr.Unauthorized("expired or invalid kakao token", nil)
 	} else if resp.StatusCode != http.StatusOK {
-		return false, "", nil, apperr.InternalServerError("kakao api returned error status", fmt.Errorf("status: %d", resp.StatusCode))
+		return models.LoginResponse{}, apperr.InternalServerError("kakao api returned error status", fmt.Errorf("status: %d", resp.StatusCode))
 	}
 	defer resp.Body.Close()
 
@@ -217,7 +225,7 @@ func (s *userService) LoginWithKakao(ctx context.Context, accessToken string) (b
 		} `json:"kakao_account"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&kakaoRes); err != nil {
-		return false, "", nil, apperr.InternalServerError("failed to decode Kakao user info", err)
+		return models.LoginResponse{}, apperr.InternalServerError("failed to decode Kakao user info", err)
 	}
 
 	socialID := strconv.FormatInt(kakaoRes.ID, 10)
@@ -252,11 +260,11 @@ func (s *userService) verifyAppleToken(identityToken string, clientID string) (j
 	return nil, apperr.Unauthorized("invalid token claims", nil)
 }
 
-func (s *userService) LoginWithApple(ctx context.Context, identityToken string) (bool, string, *models.User, error) {
+func (s *userService) LoginWithApple(ctx context.Context, identityToken string) (models.LoginResponse, error) {
 	clientID := config.AppConfig.AppleBundleID
 	claims, err := s.verifyAppleToken(identityToken, clientID)
 	if err != nil {
-		return false, "", nil, err
+		return models.LoginResponse{}, err
 	}
 
 	socialID, _ := claims["sub"].(string)
