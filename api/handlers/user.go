@@ -222,7 +222,7 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 // @Produce json
 // @Success 200 {object} response.Response{data=string} "동기화 성공 메시지"
 // @Security BearerAuth
-// @Router /users/me/sync-day [post]
+// @Router /users/me/sync-day [patch]
 func (h *UserHandler) SyncUserDay(c *gin.Context) {
 	userID, err := GetUserID(c)
 	if err != nil {

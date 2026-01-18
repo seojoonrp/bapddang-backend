@@ -905,7 +905,7 @@ const docTemplate = `{
             }
         },
         "/users/me/sync-day": {
-            "post": {
+            "patch": {
                 "security": [
                     {
                         "BearerAuth": []

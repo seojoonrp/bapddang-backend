@@ -48,6 +48,7 @@ func SetupRoutes(
 			users.GET("/me", userHandler.GetMe)
 			users.GET("/me/liked-foods", likeHandler.GetLikedFoods)
 			users.GET("/me/reviews", reviewHandler.GetMyReviewsByDay)
+			users.PATCH("/me/sync-day", userHandler.SyncUserDay)
 		}
 
 		foods := apiV1.Group("/foods")

@@ -761,7 +761,7 @@ paths:
       tags:
       - Review
   /users/me/sync-day:
-    post:
+    patch:
       consumes:
       - application/json
       description: 가입일로부터의 경과 일수를 바탕으로 유저의 Day를 업데이트한다.
