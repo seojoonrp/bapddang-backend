@@ -21,12 +21,14 @@ type ReviewService interface {
 type reviewService struct {
 	reviewRepo repositories.ReviewRepository
 	foodRepo   repositories.FoodRepository
+	userRepo   repositories.UserRepository
 }
 
-func NewReviewService(reviewRepo repositories.ReviewRepository, foodRepo repositories.FoodRepository) ReviewService {
+func NewReviewService(rr repositories.ReviewRepository, fr repositories.FoodRepository, ur repositories.UserRepository) ReviewService {
 	return &reviewService{
-		reviewRepo: reviewRepo,
-		foodRepo:   foodRepo,
+		reviewRepo: rr,
+		foodRepo:   fr,
+		userRepo:   ur,
 	}
 }
 
@@ -44,6 +46,11 @@ func (s *reviewService) CreateReview(ctx context.Context, req models.CreateRevie
 		return nil, apperr.BadRequest("rating must be between 1 and 5", nil)
 	}
 
+	user, err := s.userRepo.FindByID(ctx, uID)
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to fetch user", err)
+	}
+
 	newReview := models.Review{
 		ID:        primitive.NewObjectID(),
 		UserID:    uID,
@@ -54,7 +61,7 @@ func (s *reviewService) CreateReview(ctx context.Context, req models.CreateRevie
 		ImageURL:  req.ImageURL,
 		Comment:   req.Comment,
 		Rating:    req.Rating,
-		Day:       1, // TODO
+		Day:       user.Day,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}

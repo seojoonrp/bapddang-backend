@@ -11,6 +11,7 @@ import (
 const (
 	SpeedFast = "fast"
 	SpeedSlow = "slow"
+	SpeedBoth = "both"
 )
 
 type StandardFood struct {
@@ -40,7 +41,7 @@ type CustomFood struct {
 	CreatedAt   time.Time          `bson:"created_at" json:"createdAt"`
 }
 
-type MainFeedResponse struct {
+type FoodLikeResponse struct {
 	Food    StandardFood `json:"food"`
 	IsLiked bool         `json:"isLiked"`
 }

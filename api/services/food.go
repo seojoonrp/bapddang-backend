@@ -21,7 +21,8 @@ type FoodService interface {
 	CreateStandards(ctx context.Context, req []models.CreateStandardFoodRequest) ([]*models.StandardFood, error)
 	ResolveFoodItems(ctx context.Context, names []string) ([]models.ReviewFoodItem, error)
 
-	GetMainFeedFoods(ctx context.Context, userID string, speed string, foodCount int) ([]models.MainFeedResponse, error)
+	GetMainFeedFoods(ctx context.Context, userID string, speed string, count int) ([]models.FoodLikeResponse, error)
+	GetFoodsByCategories(ctx context.Context, userID string, speed string, categories []string, count int) ([]models.FoodLikeResponse, error)
 
 	IncrementLikeCount(ctx context.Context, foodID string) error
 	DecrementLikeCount(ctx context.Context, foodID string) error
@@ -151,50 +152,9 @@ func (s *foodService) ResolveFoodItems(ctx context.Context, names []string) ([]m
 	return result, nil
 }
 
-func (s *foodService) GetMainFeedFoods(ctx context.Context, userID string, speed string, foodCount int) ([]models.MainFeedResponse, error) {
-	uID, err := primitive.ObjectIDFromHex(userID)
-	if err != nil {
-		return nil, apperr.InternalServerError("invalid user ID in token", err)
-	}
-
-	if foodCount <= 0 || foodCount > 10 {
-		return nil, apperr.BadRequest("invalid food count", nil)
-	}
-
-	if speed != models.SpeedFast && speed != models.SpeedSlow {
-		return nil, apperr.BadRequest("invalid speed type", nil)
-	}
-
-	// 임시로 그냥 랜덤 뽑기 설정
-	foods, err := s.getRecommendedFoods(ctx, uID, speed, foodCount)
-	if err != nil {
-		return nil, err
-	}
-
-	foodIDs := make([]primitive.ObjectID, 0, len(foods))
-	for _, food := range foods {
-		foodIDs = append(foodIDs, food.ID)
-	}
-
-	likedMap, err := s.likeRepo.CheckLikedStatus(ctx, uID, foodIDs)
-	if err != nil {
-		return nil, apperr.InternalServerError("failed to check liked status", err)
-	}
-
-	responses := make([]models.MainFeedResponse, 0, len(foods))
-	for _, food := range foods {
-		responses = append(responses, models.MainFeedResponse{
-			Food:    food,
-			IsLiked: likedMap[food.ID],
-		})
-	}
-
-	return responses, nil
-}
-
-func (s *foodService) getRecommendedFoods(ctx context.Context, userID primitive.ObjectID, speed string, foodCount int) ([]models.StandardFood, error) {
-	candidateCount := foodCount * 5
-	candidates, err := s.foodRepo.GetRandomStandards(ctx, speed, candidateCount)
+func (s *foodService) getRecommendedFoods(ctx context.Context, userID primitive.ObjectID, speed string, count int) ([]models.StandardFood, error) {
+	candidateCount := count * 5
+	candidates, err := s.foodRepo.GetRandomStandards(ctx, speed, nil, candidateCount)
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to get candidate foods", err)
 	}
@@ -240,7 +200,7 @@ func (s *foodService) getRecommendedFoods(ctx context.Context, userID primitive.
 	usedParents := make(map[string]bool)
 
 	for _, sf := range scoredList {
-		if len(finalFoods) >= foodCount {
+		if len(finalFoods) >= count {
 			break
 		}
 
@@ -283,6 +243,76 @@ func (s *foodService) getRecommendedFoods(ctx context.Context, userID primitive.
 	}(newHistory)
 
 	return finalFoods, nil
+}
+
+func (s *foodService) wrapWithLikeStatus(ctx context.Context, userID primitive.ObjectID, foods []models.StandardFood) ([]models.FoodLikeResponse, error) {
+	foodIDs := make([]primitive.ObjectID, 0, len(foods))
+	for _, food := range foods {
+		foodIDs = append(foodIDs, food.ID)
+	}
+
+	likedMap, err := s.likeRepo.CheckLikedStatus(ctx, userID, foodIDs)
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to check liked status", err)
+	}
+
+	var responses []models.FoodLikeResponse
+	for _, food := range foods {
+		responses = append(responses, models.FoodLikeResponse{
+			Food:    food,
+			IsLiked: likedMap[food.ID],
+		})
+	}
+
+	return responses, nil
+}
+
+func (s *foodService) GetMainFeedFoods(ctx context.Context, userID string, speed string, count int) ([]models.FoodLikeResponse, error) {
+	uID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return nil, apperr.InternalServerError("invalid user ID in token", err)
+	}
+
+	if count <= 0 || count > 10 {
+		return nil, apperr.BadRequest("invalid food count", nil)
+	}
+
+	if speed != models.SpeedFast && speed != models.SpeedSlow {
+		return nil, apperr.BadRequest("invalid speed type", nil)
+	}
+
+	foods, err := s.getRecommendedFoods(ctx, uID, speed, count)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.wrapWithLikeStatus(ctx, uID, foods)
+}
+
+func (s *foodService) GetFoodsByCategories(ctx context.Context, userID string, speed string, categories []string, count int) ([]models.FoodLikeResponse, error) {
+	uID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return nil, apperr.InternalServerError("invalid user ID in token", err)
+	}
+
+	if count <= 0 || count > 10 {
+		return nil, apperr.BadRequest("invalid food count", nil)
+	}
+
+	if speed != models.SpeedFast && speed != models.SpeedSlow {
+		return nil, apperr.BadRequest("invalid speed type", nil)
+	}
+
+	if len(categories) == 0 {
+		return nil, apperr.BadRequest("categories list cannot be empty", nil)
+	}
+
+	foods, err := s.foodRepo.GetRandomStandards(ctx, speed, categories, count)
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to get foods by categories", err)
+	}
+
+	return s.wrapWithLikeStatus(ctx, uID, foods)
 }
 
 func (s *foodService) IncrementLikeCount(ctx context.Context, foodID string) error {

@@ -54,6 +54,7 @@ func SetupRoutes(
 		foods := apiV1.Group("/foods")
 		{
 			foods.GET("/:foodID", foodHandler.GetStandardFoodByID)
+			foods.GET("", foodHandler.GetFoodsByCategories)
 
 			protectedFoods := foods.Group("/")
 			protectedFoods.Use(middleware.AuthMiddleware())

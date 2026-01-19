@@ -110,7 +110,7 @@ func (h *FoodHandler) ResolveFoodItems(c *gin.Context) {
 // @Produce json
 // @Param speed query string true "속도 (fast/slow)"
 // @Param count query int true "조회 개수 (최대 10개)"
-// @Success 200 {object} response.Response{data=[]models.MainFeedResponse} "조회 성공"
+// @Success 200 {object} response.Response{data=[]models.FoodLikeResponse} "조회 성공"
 // @Security BearerAuth
 // @Router /foods/main-feed [get]
 func (h *FoodHandler) GetMainFeedFoods(c *gin.Context) {
@@ -122,14 +122,54 @@ func (h *FoodHandler) GetMainFeedFoods(c *gin.Context) {
 
 	speed := c.Query("speed")
 
-	foodCountStr := c.Query("count")
-	foodCount, err := strconv.Atoi(foodCountStr)
+	countStr := c.Query("count")
+	count, err := strconv.Atoi(countStr)
 	if err != nil {
 		c.Error(apperr.BadRequest("invalid food count", err))
 		return
 	}
 
-	result, err := h.foodService.GetMainFeedFoods(c, userID, speed, foodCount)
+	result, err := h.foodService.GetMainFeedFoods(c, userID, speed, count)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Response{
+		Success: true,
+		Data:    result,
+	})
+}
+
+// @Summary 카테고리별 음식 조회
+// @Description 카테고리별 음식 목록을 랜덤하게 가져온다.
+// @Tags Food
+// @Accept json
+// @Produce json
+// @Param speed query string true "속도 (fast/slow)"
+// @Param category query []string true "카테고리 목록 (1개 이상)"
+// @Param count query int true "조회 개수 (최대 10개)"
+// @Success 200 {object} response.Response{data=[]models.FoodLikeResponse} "조회 성공"
+// @Security BearerAuth
+// @Router /foods [get]
+func (h *FoodHandler) GetFoodsByCategories(c *gin.Context) {
+	userID, err := GetUserID(c)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	speed := c.Query("speed")
+	categories := c.QueryArray("category")
+
+	countStr := c.Query("count")
+	count, err := strconv.Atoi(countStr)
+	if err != nil {
+		c.Error(apperr.BadRequest("invalid food count", err))
+		return
+	}
+
+	result, err := h.foodService.GetFoodsByCategories(c, userID, speed, categories, count)
 	if err != nil {
 		c.Error(err)
 		return
