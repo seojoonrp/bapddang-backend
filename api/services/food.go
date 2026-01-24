@@ -303,10 +303,6 @@ func (s *foodService) GetFoodsByCategories(ctx context.Context, userID string, s
 		return nil, apperr.BadRequest("invalid speed type", nil)
 	}
 
-	if len(categories) == 0 {
-		return nil, apperr.BadRequest("categories list cannot be empty", nil)
-	}
-
 	foods, err := s.foodRepo.GetRandomStandards(ctx, speed, categories, count)
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to get foods by categories", err)
