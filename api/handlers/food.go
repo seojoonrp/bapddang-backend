@@ -160,7 +160,7 @@ func (h *FoodHandler) GetFoodsByCategories(c *gin.Context) {
 	}
 
 	speed := c.Query("speed")
-	categories := c.QueryArray("category")
+	categories := c.QueryArray("category[]")
 
 	countStr := c.Query("count")
 	count, err := strconv.Atoi(countStr)

@@ -353,6 +353,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/foods": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "카테고리별 음식 목록을 랜덤하게 가져온다.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Food"
+                ],
+                "summary": "카테고리별 음식 조회",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "속도 (fast/slow)",
+                        "name": "speed",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "카테고리 목록 (1개 이상)",
+                        "name": "category",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "조회 개수 (최대 10개)",
+                        "name": "count",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "조회 성공",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.FoodLikeResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/foods/main-feed": {
             "get": {
                 "security": [
@@ -401,7 +471,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/models.MainFeedResponse"
+                                                "$ref": "#/definitions/models.FoodLikeResponse"
                                             }
                                         }
                                     }
@@ -1037,6 +1107,17 @@ const docTemplate = `{
                 }
             }
         },
+        "models.FoodLikeResponse": {
+            "type": "object",
+            "properties": {
+                "food": {
+                    "$ref": "#/definitions/models.StandardFood"
+                },
+                "isLiked": {
+                    "type": "boolean"
+                }
+            }
+        },
         "models.GoogleLoginRequest": {
             "type": "object",
             "required": [
@@ -1085,17 +1166,6 @@ const docTemplate = `{
                 },
                 "user": {
                     "$ref": "#/definitions/models.User"
-                }
-            }
-        },
-        "models.MainFeedResponse": {
-            "type": "object",
-            "properties": {
-                "food": {
-                    "$ref": "#/definitions/models.StandardFood"
-                },
-                "isLiked": {
-                    "type": "boolean"
                 }
             }
         },

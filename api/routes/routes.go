@@ -54,7 +54,6 @@ func SetupRoutes(
 		foods := apiV1.Group("/foods")
 		{
 			foods.GET("/:foodID", foodHandler.GetStandardFoodByID)
-			foods.GET("", foodHandler.GetFoodsByCategories)
 
 			protectedFoods := foods.Group("/")
 			protectedFoods.Use(middleware.AuthMiddleware())
@@ -63,6 +62,7 @@ func SetupRoutes(
 				protectedFoods.DELETE("/:foodID/likes", likeHandler.UnlikeFood)
 
 				protectedFoods.GET("/main-feed", foodHandler.GetMainFeedFoods)
+				protectedFoods.GET("", foodHandler.GetFoodsByCategories)
 
 				protectedFoods.POST("/resolve", foodHandler.ResolveFoodItems)
 			}
