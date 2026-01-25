@@ -46,16 +46,17 @@ type UserService interface {
 	LoginWithKakao(ctx context.Context, accessToken string) (models.LoginResponse, error)
 	LoginWithApple(ctx context.Context, identityToken string) (models.LoginResponse, error)
 
-	SyncUserDay(ctx context.Context, userID string) error
+	SyncUserDay(ctx context.Context, userID string) (bool, error)
 }
 
 type userService struct {
-	userRepo repositories.UserRepository
-	foodRepo repositories.FoodRepository
+	userRepo        repositories.UserRepository
+	foodRepo        repositories.FoodRepository
+	marshmallowRepo repositories.MarshmallowRepository
 }
 
-func NewUserService(userRepo repositories.UserRepository, foodRepo repositories.FoodRepository) UserService {
-	return &userService{userRepo: userRepo, foodRepo: foodRepo}
+func NewUserService(ur repositories.UserRepository, fr repositories.FoodRepository, mr repositories.MarshmallowRepository) UserService {
+	return &userService{userRepo: ur, foodRepo: fr, marshmallowRepo: mr}
 }
 
 func (s *userService) CheckUsernameExists(ctx context.Context, username string) (bool, error) {
@@ -275,18 +276,18 @@ func (s *userService) LoginWithApple(ctx context.Context, identityToken string) 
 	return s.loginWithSocial(ctx, models.LoginMethodApple, socialID, email)
 }
 
-func (s *userService) SyncUserDay(ctx context.Context, userID string) error {
+func (s *userService) SyncUserDay(ctx context.Context, userID string) (bool, error) {
 	uID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
-		return apperr.InternalServerError("invalid user ID in token", err)
+		return false, apperr.InternalServerError("invalid user ID in token", err)
 	}
 
 	user, err := s.userRepo.FindByID(ctx, uID)
 	if err != nil {
-		return apperr.InternalServerError("failed to fetch user", err)
+		return false, apperr.InternalServerError("failed to fetch user", err)
 	}
 	if user == nil {
-		return apperr.NotFound("user not found", nil)
+		return false, apperr.NotFound("user not found", nil)
 	}
 
 	seoulLoc, _ := time.LoadLocation("Asia/Seoul")
@@ -297,15 +298,45 @@ func (s *userService) SyncUserDay(ctx context.Context, userID string) error {
 	startZero := time.Date(createdAtKST.Year(), createdAtKST.Month(), createdAtKST.Day(), 0, 0, 0, 0, seoulLoc)
 
 	calculatedDay := int(todayZero.Sub(startZero).Hours()/24) + 1
+	calculatedWeek := (calculatedDay-1)/7 + 1
+	weekUpdated := false
 
 	if user.Day < calculatedDay {
-		err := s.userRepo.UpdateDay(ctx, uID, calculatedDay)
-		if err != nil {
-			return apperr.InternalServerError("failed to update user day", err)
+		if user.Week < calculatedWeek {
+			weekUpdated = true
+
+			for week := user.Week; week < calculatedWeek; week++ {
+				m, _ := s.marshmallowRepo.FindByUserIDAndWeek(ctx, uID, week)
+				if m == nil { // 1주간 접속 기록이 아예 없어서 생성조차 안된 경우
+					emptyMarshmallow := models.Marshmallow{
+						ID:          primitive.NewObjectID(),
+						UserID:      user.ID,
+						Week:        week,
+						ReviewCount: 0,
+						TotalRating: 0,
+						Status:      -1,
+						IsComplete:  true,
+					}
+					err := s.marshmallowRepo.Create(ctx, emptyMarshmallow)
+					if err != nil {
+						log.Printf("[WARNING] Failed to create empty marshmallow for user %s week %d: %v", user.Username, week, err)
+					}
+				} else if !m.IsComplete { // 존재는 하는데 완료처리가 안된 경우
+					finalStatus := utils.GetMarshmallowStatus(m.ReviewCount, m.TotalRating)
+					err := s.marshmallowRepo.CompleteMarshmallow(ctx, m.ID, finalStatus)
+					if err != nil {
+						return false, apperr.InternalServerError("failed to complete marshmallow", err)
+					}
+				}
+			}
 		}
-		user.Day = calculatedDay
+
+		err := s.userRepo.UpdateDayAndWeek(ctx, uID, calculatedDay, calculatedWeek)
+		if err != nil {
+			return false, apperr.InternalServerError("failed to update user day/week", err)
+		}
+		log.Printf("Successfully updated user %s's day to %d and week to %d", user.Username, calculatedDay, calculatedWeek)
 	}
 
-	log.Printf("Successfully update user %s's day to %d", user.Username, calculatedDay)
-	return nil
+	return weekUpdated, nil
 }

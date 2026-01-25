@@ -22,6 +22,7 @@ func InitIndexes(client *mongo.Client) {
 	initReviewIndexes(db.Collection("reviews"))
 	initLikeIndexes(db.Collection("likes"))
 	initRecHistoryIndexes(db.Collection("recommendation_histories"))
+	initMarshmallowIndexes(db.Collection("marshmallows"))
 }
 
 func initUserIndexes(coll *mongo.Collection) {
@@ -87,6 +88,16 @@ func initRecHistoryIndexes(coll *mongo.Collection) {
 	createIndex(coll, mongo.IndexModel{
 		Keys:    bson.D{{Key: "created_at", Value: 1}},
 		Options: options.Index().SetExpireAfterSeconds(60 * 60 * 24 * 7).SetName("idx_rec_history_ttl"),
+	})
+}
+
+func initMarshmallowIndexes(coll *mongo.Collection) {
+	createIndex(coll, mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "user_id", Value: 1},
+			{Key: "week", Value: 1},
+		},
+		Options: options.Index().SetUnique(true).SetName("idx_unique_user_week_marshmallow"),
 	})
 }
 

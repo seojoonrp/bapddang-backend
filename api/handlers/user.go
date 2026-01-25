@@ -216,21 +216,21 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 }
 
 // @Summary Day 동기화
-// @Description 가입일로부터의 경과 일수를 바탕으로 유저의 Day를 업데이트한다.
+// @Description 가입일로부터의 경과 일수를 바탕으로 유저의 Day와 Week을 업데이트하고, 마시멜로 상태를 동기화한다.
 // @Tags User
 // @Accept json
 // @Produce json
-// @Success 200 {object} response.Response{data=string} "동기화 성공 메시지"
+// @Success 200 {object} response.Response{data=bool} "Week 변경 여부 (true: 변경됨)"
 // @Security BearerAuth
-// @Router /users/me/sync-day [patch]
-func (h *UserHandler) SyncUserDay(c *gin.Context) {
+// @Router /users/me/sync [patch]
+func (h *UserHandler) SyncUserDayAndWeek(c *gin.Context) {
 	userID, err := GetUserID(c)
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	err = h.userService.SyncUserDay(c, userID)
+	weekUpdated, err := h.userService.SyncUserDay(c, userID)
 	if err != nil {
 		c.Error(err)
 		return
@@ -238,6 +238,6 @@ func (h *UserHandler) SyncUserDay(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response.Response{
 		Success: true,
-		Data:    "user day synchronized successfully",
+		Data:    weekUpdated,
 	})
 }
