@@ -20,6 +20,7 @@ type Review struct {
 	Comment   string             `bson:"comment" json:"comment"`
 	Rating    int                `bson:"rating" json:"rating"`
 	Day       int                `bson:"day" json:"day"`
+	Week      int                `bson:"week" json:"week"`
 	CreatedAt time.Time          `bson:"created_at" json:"createdAt"`
 	UpdatedAt time.Time          `bson:"updated_at" json:"updatedAt"`
 }

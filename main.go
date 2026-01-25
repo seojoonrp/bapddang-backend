@@ -51,7 +51,7 @@ func main() {
 
 	userService := services.NewUserService(userRepository, foodRepository, marshmallowRepository)
 	foodService := services.NewFoodService(context.Background(), foodRepository, likeRepository, recHistoryRepository)
-	reviewService := services.NewReviewService(reviewRepository, foodRepository, userRepository)
+	reviewService := services.NewReviewService(reviewRepository, foodRepository, userRepository, marshmallowRepository)
 	likeService := services.NewLikeService(likeRepository, foodRepository)
 
 	userHandler := handlers.NewUserHandler(userService, foodService)

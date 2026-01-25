@@ -13,6 +13,7 @@ import (
 type MarshmallowRepository interface {
 	Create(ctx context.Context, marshmallow models.Marshmallow) error
 	AddReviewData(ctx context.Context, marshmallowID primitive.ObjectID, rating int) error
+	UpdateReviewData(ctx context.Context, marshmallowID primitive.ObjectID, oldRating int, newRating int) error
 	CompleteMarshmallow(ctx context.Context, marshmallowID primitive.ObjectID, status int) error
 	FindByUserIDAndWeek(ctx context.Context, userID primitive.ObjectID, week int) (*models.Marshmallow, error)
 	FindByUserID(ctx context.Context, userID primitive.ObjectID) ([]models.Marshmallow, error)
@@ -39,6 +40,18 @@ func (r *marshmallowRepository) AddReviewData(ctx context.Context, marshmallowID
 		"$inc": primitive.M{
 			"review_count": 1,
 			"total_rating": rating,
+		},
+	}
+
+	_, err := r.collection.UpdateOne(ctx, filter, update)
+	return err
+}
+
+func (r *marshmallowRepository) UpdateReviewData(ctx context.Context, marshmallowID primitive.ObjectID, oldRating int, newRating int) error {
+	filter := primitive.M{"_id": marshmallowID}
+	update := primitive.M{
+		"$inc": primitive.M{
+			"total_rating": newRating - oldRating,
 		},
 	}
 

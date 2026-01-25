@@ -19,16 +19,18 @@ type ReviewService interface {
 }
 
 type reviewService struct {
-	reviewRepo repositories.ReviewRepository
-	foodRepo   repositories.FoodRepository
-	userRepo   repositories.UserRepository
+	reviewRepo      repositories.ReviewRepository
+	foodRepo        repositories.FoodRepository
+	userRepo        repositories.UserRepository
+	marshmallowRepo repositories.MarshmallowRepository
 }
 
-func NewReviewService(rr repositories.ReviewRepository, fr repositories.FoodRepository, ur repositories.UserRepository) ReviewService {
+func NewReviewService(rr repositories.ReviewRepository, fr repositories.FoodRepository, ur repositories.UserRepository, mr repositories.MarshmallowRepository) ReviewService {
 	return &reviewService{
-		reviewRepo: rr,
-		foodRepo:   fr,
-		userRepo:   ur,
+		reviewRepo:      rr,
+		foodRepo:        fr,
+		userRepo:        ur,
+		marshmallowRepo: mr,
 	}
 }
 
@@ -62,6 +64,7 @@ func (s *reviewService) CreateReview(ctx context.Context, req models.CreateRevie
 		Comment:   req.Comment,
 		Rating:    req.Rating,
 		Day:       user.Day,
+		Week:      user.Week,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -104,6 +107,18 @@ func (s *reviewService) CreateReview(ctx context.Context, req models.CreateRevie
 		}
 	}
 
+	marshmallow, err := s.marshmallowRepo.FindByUserIDAndWeek(ctx, user.ID, user.Week)
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to fetch marshmallow", err)
+	}
+	if marshmallow == nil {
+		return nil, apperr.InternalServerError("marshmallow not found for current week", nil)
+	}
+	err = s.marshmallowRepo.AddReviewData(ctx, marshmallow.ID, newReview.Rating)
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to update marshmallow status", err)
+	}
+
 	return &newReview, nil
 }
 
@@ -124,6 +139,15 @@ func (s *reviewService) UpdateReview(ctx context.Context, reviewID string, userI
 
 	if req.Rating <= 0 || req.Rating > 5 {
 		return nil, apperr.BadRequest("rating must be in between 1 and 5", nil)
+	}
+
+	user, err := s.userRepo.FindByID(ctx, review.UserID)
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to fetch user", err)
+	}
+
+	if review.Week != user.Week {
+		return nil, apperr.BadRequest("cannot update review from previous weeks", nil)
 	}
 
 	oldRating := review.Rating
@@ -154,6 +178,20 @@ func (s *reviewService) UpdateReview(ctx context.Context, reviewID string, userI
 		err = s.foodRepo.UpdateStandardModifiedReviewStats(ctx, standardFoodIDs, oldRating, review.Rating)
 		if err != nil {
 			return nil, apperr.InternalServerError("failed to update food review stats", err)
+		}
+	}
+
+	if oldRating != review.Rating {
+		marshmallow, err := s.marshmallowRepo.FindByUserIDAndWeek(ctx, user.ID, user.Week)
+		if err != nil {
+			return nil, apperr.InternalServerError("failed to fetch marshmallow", err)
+		}
+		if marshmallow == nil {
+			return nil, apperr.InternalServerError("marshmallow not found for current week", nil)
+		}
+		err = s.marshmallowRepo.UpdateReviewData(ctx, marshmallow.ID, oldRating, review.Rating)
+		if err != nil {
+			return nil, apperr.InternalServerError("failed to update marshmallow status", err)
 		}
 	}
 
