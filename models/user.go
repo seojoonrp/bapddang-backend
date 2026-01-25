@@ -23,6 +23,7 @@ type User struct {
 	Email       string             `bson:"email,omitempty" json:"email"`
 	LoginMethod string             `bson:"login_method" json:"loginMethod"`
 	Day         int                `bson:"day" json:"day"`
+	Week        int                `bson:"week" json:"week"`
 	CreatedAt   time.Time          `bson:"created_at" json:"createdAt"`
 }
 

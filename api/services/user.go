@@ -111,6 +111,7 @@ func (s *userService) SignUp(ctx context.Context, req models.SignUpRequest) erro
 		Password:    string(hashedPassword),
 		LoginMethod: models.LoginMethodLocal,
 		Day:         1,
+		Week:        1,
 		CreatedAt:   time.Now(),
 	}
 
@@ -162,6 +163,7 @@ func (s *userService) loginWithSocial(ctx context.Context, provider string, soci
 			SocialID:    socialID,
 			LoginMethod: provider,
 			Day:         1,
+			Week:        1,
 			CreatedAt:   time.Now(),
 		}
 		if email != "" {
