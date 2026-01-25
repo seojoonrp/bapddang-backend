@@ -712,6 +712,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/marshmallows": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "특정 유저의 마시멜로 정보를 시간순으로 정렬해 반환한다.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Marshmallow"
+                ],
+                "summary": "유저 마시멜로 조회",
+                "responses": {
+                    "200": {
+                        "description": "마시멜로 조회 성공",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Marshmallow"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "인증 실패",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/reviews": {
             "post": {
                 "security": [
@@ -974,14 +1020,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/users/me/sync-day": {
+        "/users/me/sync": {
             "patch": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "가입일로부터의 경과 일수를 바탕으로 유저의 Day를 업데이트한다.",
+                "description": "가입일로부터의 경과 일수를 바탕으로 유저의 Day와 Week을 업데이트하고, 마시멜로 상태를 동기화한다.",
                 "consumes": [
                     "application/json"
                 ],
@@ -994,7 +1040,7 @@ const docTemplate = `{
                 "summary": "Day 동기화",
                 "responses": {
                     "200": {
-                        "description": "동기화 성공 메시지",
+                        "description": "Week 변경 여부 (true: 변경됨)",
                         "schema": {
                             "allOf": [
                                 {
@@ -1004,7 +1050,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "string"
+                                            "type": "boolean"
                                         }
                                     }
                                 }
@@ -1169,6 +1215,32 @@ const docTemplate = `{
                 }
             }
         },
+        "models.Marshmallow": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "isComplete": {
+                    "type": "boolean"
+                },
+                "reviewCount": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "totalRating": {
+                    "type": "integer"
+                },
+                "userID": {
+                    "type": "string"
+                },
+                "week": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.ResolveFoodItemsRequest": {
             "type": "object",
             "required": [
@@ -1224,6 +1296,9 @@ const docTemplate = `{
                 },
                 "userID": {
                     "type": "string"
+                },
+                "week": {
+                    "type": "integer"
                 }
             }
         },
@@ -1340,6 +1415,9 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
+                },
+                "week": {
+                    "type": "integer"
                 }
             }
         },

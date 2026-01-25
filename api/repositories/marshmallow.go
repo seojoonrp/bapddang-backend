@@ -8,6 +8,7 @@ import (
 	"github.com/seojoonrp/bapddang-server/models"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type MarshmallowRepository interface {
@@ -90,23 +91,20 @@ func (r *marshmallowRepository) FindByUserIDAndWeek(ctx context.Context, userID 
 }
 
 func (r *marshmallowRepository) FindByUserID(ctx context.Context, userID primitive.ObjectID) ([]models.Marshmallow, error) {
-	filter := primitive.M{
-		"user_id": userID,
-	}
+	marshmallows := make([]models.Marshmallow, 0)
 
-	cursor, err := r.collection.Find(ctx, filter)
+	filter := primitive.M{"user_id": userID}
+
+	findOptions := options.Find().SetSort(primitive.M{"week": 1})
+
+	cursor, err := r.collection.Find(ctx, filter, findOptions)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
 
-	var marshmallows []models.Marshmallow
-	for cursor.Next(ctx) {
-		var marshmallow models.Marshmallow
-		if err := cursor.Decode(&marshmallow); err != nil {
-			return nil, err
-		}
-		marshmallows = append(marshmallows, marshmallow)
+	if err := cursor.All(ctx, &marshmallows); err != nil {
+		return nil, err
 	}
 
 	return marshmallows, nil

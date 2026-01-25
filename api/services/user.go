@@ -305,6 +305,26 @@ func (s *userService) SyncUserDay(ctx context.Context, userID string) (bool, err
 		if user.Week < calculatedWeek {
 			weekUpdated = true
 
+			curM, err := s.marshmallowRepo.FindByUserIDAndWeek(ctx, uID, user.Week)
+			if err != nil {
+				return false, apperr.InternalServerError("failed to fetch marshmallow", err)
+			}
+			if curM == nil {
+				newM := models.Marshmallow{
+					ID:          primitive.NewObjectID(),
+					UserID:      user.ID,
+					Week:        user.Week,
+					ReviewCount: 0,
+					TotalRating: 0,
+					Status:      -1,
+					IsComplete:  false,
+				}
+				err := s.marshmallowRepo.Create(ctx, newM)
+				if err != nil {
+					return false, apperr.InternalServerError("failed to create marshmallow", err)
+				}
+			}
+
 			for week := user.Week; week < calculatedWeek; week++ {
 				m, _ := s.marshmallowRepo.FindByUserIDAndWeek(ctx, uID, week)
 				if m == nil { // 1주간 접속 기록이 아예 없어서 생성조차 안된 경우

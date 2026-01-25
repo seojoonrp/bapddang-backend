@@ -21,6 +21,7 @@ func SetupRoutes(
 	foodHandler *handlers.FoodHandler,
 	reviewHandler *handlers.ReviewHandler,
 	likeHandler *handlers.LikeHandler,
+	marshmallowHandler *handlers.MarshmallowHandler,
 ) {
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -73,6 +74,12 @@ func SetupRoutes(
 		{
 			reviews.POST("", reviewHandler.CreateReview)
 			reviews.PATCH("/:reviewID", reviewHandler.UpdateReview)
+		}
+
+		marshmallows := apiV1.Group("/marshmallows")
+		marshmallows.Use(middleware.AuthMiddleware())
+		{
+			marshmallows.GET("", marshmallowHandler.GetUserMarshmallows)
 		}
 
 		adminRoutes := apiV1.Group("/admin") // no protection for now

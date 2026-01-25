@@ -53,18 +53,28 @@ func main() {
 	foodService := services.NewFoodService(context.Background(), foodRepository, likeRepository, recHistoryRepository)
 	reviewService := services.NewReviewService(reviewRepository, foodRepository, userRepository, marshmallowRepository)
 	likeService := services.NewLikeService(likeRepository, foodRepository)
+	marshmallowService := services.NewMarshmallowService(marshmallowRepository)
 
 	userHandler := handlers.NewUserHandler(userService, foodService)
 	foodHandler := handlers.NewFoodHandler(foodService)
 	reviewHandler := handlers.NewReviewHandler(reviewService, foodService)
 	likeHandler := handlers.NewLikeHandler(likeService)
+	marshmallowHandler := handlers.NewMarshmallowHandler(marshmallowService)
 
 	router := gin.Default()
 	router.Use(cors.Default())
 	router.Use(middleware.ErrorHandler())
 	router.SetTrustedProxies(nil)
 
-	routes.SetupRoutes(router, db, userHandler, foodHandler, reviewHandler, likeHandler)
+	routes.SetupRoutes(
+		router,
+		db,
+		userHandler,
+		foodHandler,
+		reviewHandler,
+		likeHandler,
+		marshmallowHandler,
+	)
 
 	port := config.AppConfig.Port
 	log.Println("Server started on port " + port + ".")

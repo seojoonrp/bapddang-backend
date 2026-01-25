@@ -102,6 +102,23 @@ definitions:
       user:
         $ref: '#/definitions/models.User'
     type: object
+  models.Marshmallow:
+    properties:
+      id:
+        type: string
+      isComplete:
+        type: boolean
+      reviewCount:
+        type: integer
+      status:
+        type: integer
+      totalRating:
+        type: integer
+      userID:
+        type: string
+      week:
+        type: integer
+    type: object
   models.ResolveFoodItemsRequest:
     properties:
       names:
@@ -139,6 +156,8 @@ definitions:
         type: string
       userID:
         type: string
+      week:
+        type: integer
     type: object
   models.ReviewFoodItem:
     properties:
@@ -216,6 +235,8 @@ definitions:
         type: string
       username:
         type: string
+      week:
+        type: integer
     type: object
   response.ErrorDetail:
     properties:
@@ -652,6 +673,32 @@ paths:
       summary: 리뷰용 음식 반환
       tags:
       - Food
+  /marshmallows:
+    get:
+      description: 특정 유저의 마시멜로 정보를 시간순으로 정렬해 반환한다.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 마시멜로 조회 성공
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Marshmallow'
+                  type: array
+              type: object
+        "401":
+          description: 인증 실패
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 유저 마시멜로 조회
+      tags:
+      - Marshmallow
   /reviews:
     post:
       consumes:
@@ -803,22 +850,22 @@ paths:
       summary: 날짜별 리뷰 조회
       tags:
       - Review
-  /users/me/sync-day:
+  /users/me/sync:
     patch:
       consumes:
       - application/json
-      description: 가입일로부터의 경과 일수를 바탕으로 유저의 Day를 업데이트한다.
+      description: 가입일로부터의 경과 일수를 바탕으로 유저의 Day와 Week을 업데이트하고, 마시멜로 상태를 동기화한다.
       produces:
       - application/json
       responses:
         "200":
-          description: 동기화 성공 메시지
+          description: 'Week 변경 여부 (true: 변경됨)'
           schema:
             allOf:
             - $ref: '#/definitions/response.Response'
             - properties:
                 data:
-                  type: string
+                  type: boolean
               type: object
       security:
       - BearerAuth: []
