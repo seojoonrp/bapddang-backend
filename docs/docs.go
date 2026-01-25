@@ -1090,8 +1090,7 @@ const docTemplate = `{
                 "foods",
                 "mealTime",
                 "name",
-                "rating",
-                "speed"
+                "rating"
             ],
             "properties": {
                 "comment": {
@@ -1114,9 +1113,6 @@ const docTemplate = `{
                 },
                 "rating": {
                     "type": "integer"
-                },
-                "speed": {
-                    "type": "string"
                 }
             }
         },
@@ -1288,9 +1284,6 @@ const docTemplate = `{
                 "rating": {
                     "type": "integer"
                 },
-                "speed": {
-                    "type": "string"
-                },
                 "updatedAt": {
                     "type": "string"
                 },
@@ -1444,14 +1437,6 @@ const docTemplate = `{
                 }
             }
         }
-    },
-    "securityDefinitions": {
-        "BearerAuth": {
-            "description": "\"Bearer {token}\" 형식으로 JWT 토큰을 전달",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
-        }
     }
 }`
 
@@ -1462,7 +1447,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "Bobttaeng API Server",
-	Description:      "밥땡의 백엔드 서버 API 명세서",
+	Description:      "\"Bearer {token}\" 형식으로 JWT 토큰을 전달",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

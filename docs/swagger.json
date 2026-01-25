@@ -1,7 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "밥땡의 백엔드 서버 API 명세서",
+        "description": "\"Bearer {token}\" 형식으로 JWT 토큰을 전달",
         "title": "Bobttaeng API Server",
         "contact": {},
         "version": "1.0"
@@ -1083,8 +1083,7 @@
                 "foods",
                 "mealTime",
                 "name",
-                "rating",
-                "speed"
+                "rating"
             ],
             "properties": {
                 "comment": {
@@ -1107,9 +1106,6 @@
                 },
                 "rating": {
                     "type": "integer"
-                },
-                "speed": {
-                    "type": "string"
                 }
             }
         },
@@ -1281,9 +1277,6 @@
                 "rating": {
                     "type": "integer"
                 },
-                "speed": {
-                    "type": "string"
-                },
                 "updatedAt": {
                     "type": "string"
                 },
@@ -1436,14 +1429,6 @@
                     "type": "boolean"
                 }
             }
-        }
-    },
-    "securityDefinitions": {
-        "BearerAuth": {
-            "description": "\"Bearer {token}\" 형식으로 JWT 토큰을 전달",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
         }
     }
 }

@@ -14,7 +14,6 @@ type Review struct {
 	UserID    primitive.ObjectID `bson:"user_id" json:"userID"`
 	Name      string             `bson:"name" json:"name"`
 	Foods     []ReviewFoodItem   `bson:"foods" json:"foods"`
-	Speed     string             `bson:"speed" json:"speed"`
 	MealTime  string             `bson:"meal_time" json:"mealTime"`
 	ImageURL  string             `bson:"image_url" json:"imageURL"`
 	Comment   string             `bson:"comment" json:"comment"`
@@ -28,7 +27,6 @@ type Review struct {
 type CreateReviewRequest struct {
 	Name     string           `json:"name" binding:"required"`
 	Foods    []ReviewFoodItem `json:"foods" binding:"required"`
-	Speed    string           `json:"speed" binding:"required"`
 	MealTime string           `json:"mealTime" binding:"required"`
 	ImageURL string           `json:"imageURL"`
 	Comment  string           `json:"comment"`

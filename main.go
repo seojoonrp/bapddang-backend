@@ -21,9 +21,9 @@ import (
 // @description 밥땡의 백엔드 서버 API 명세서
 // @BasePath /api/v1
 
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
+// @securityDefinitions.http BearerAuth
+// @scheme bearer
+// @bearerFormat JWT
 // @description "Bearer {token}" 형식으로 JWT 토큰을 전달
 func main() {
 	config.LoadConfig()

@@ -30,14 +30,11 @@ definitions:
         type: string
       rating:
         type: integer
-      speed:
-        type: string
     required:
     - foods
     - mealTime
     - name
     - rating
-    - speed
     type: object
   models.CreateStandardFoodRequest:
     properties:
@@ -150,8 +147,6 @@ definitions:
         type: string
       rating:
         type: integer
-      speed:
-        type: string
       updatedAt:
         type: string
       userID:
@@ -255,7 +250,7 @@ definitions:
     type: object
 info:
   contact: {}
-  description: 밥땡의 백엔드 서버 API 명세서
+  description: '"Bearer {token}" 형식으로 JWT 토큰을 전달'
   title: Bobttaeng API Server
   version: "1.0"
 paths:
@@ -872,10 +867,4 @@ paths:
       summary: Day 동기화
       tags:
       - User
-securityDefinitions:
-  BearerAuth:
-    description: '"Bearer {token}" 형식으로 JWT 토큰을 전달'
-    in: header
-    name: Authorization
-    type: apiKey
 swagger: "2.0"

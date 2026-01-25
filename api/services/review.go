@@ -58,7 +58,6 @@ func (s *reviewService) CreateReview(ctx context.Context, req models.CreateRevie
 		UserID:    uID,
 		Name:      req.Name,
 		Foods:     req.Foods,
-		Speed:     req.Speed,
 		MealTime:  req.MealTime,
 		ImageURL:  req.ImageURL,
 		Comment:   req.Comment,
