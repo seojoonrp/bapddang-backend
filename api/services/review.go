@@ -13,8 +13,9 @@ import (
 )
 
 type ReviewService interface {
-	CreateReview(ctx context.Context, input models.CreateReviewRequest, userID string) (*models.Review, error)
-	UpdateReview(ctx context.Context, reviewID string, userID string, input models.UpdateReviewRequest) (*models.Review, error)
+	Create(ctx context.Context, input models.CreateReviewRequest, userID string) (*models.Review, error)
+	Update(ctx context.Context, reviewID string, userID string, input models.UpdateReviewRequest) (*models.Review, error)
+	Delete(ctx context.Context, reviewID string, userID string) error
 	GetMyReviewsByDay(ctx context.Context, userID string, day int) ([]models.Review, error)
 }
 
@@ -34,7 +35,7 @@ func NewReviewService(rr repositories.ReviewRepository, fr repositories.FoodRepo
 	}
 }
 
-func (s *reviewService) CreateReview(ctx context.Context, req models.CreateReviewRequest, userID string) (*models.Review, error) {
+func (s *reviewService) Create(ctx context.Context, req models.CreateReviewRequest, userID string) (*models.Review, error) {
 	uID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
 		return nil, apperr.InternalServerError("invalid user ID in token", err)
@@ -68,7 +69,7 @@ func (s *reviewService) CreateReview(ctx context.Context, req models.CreateRevie
 		UpdatedAt: time.Now(),
 	}
 
-	err = s.reviewRepo.CreateReview(ctx, &newReview)
+	err = s.reviewRepo.Create(ctx, &newReview)
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to save review", err)
 	}
@@ -121,7 +122,7 @@ func (s *reviewService) CreateReview(ctx context.Context, req models.CreateRevie
 	return &newReview, nil
 }
 
-func (s *reviewService) UpdateReview(ctx context.Context, reviewID string, userID string, req models.UpdateReviewRequest) (*models.Review, error) {
+func (s *reviewService) Update(ctx context.Context, reviewID string, userID string, req models.UpdateReviewRequest) (*models.Review, error) {
 	rID, err := primitive.ObjectIDFromHex(reviewID)
 	if err != nil {
 		return nil, apperr.BadRequest("invalid review ID format", err)
@@ -157,7 +158,7 @@ func (s *reviewService) UpdateReview(ctx context.Context, reviewID string, userI
 	review.Rating = req.Rating
 	review.UpdatedAt = time.Now()
 
-	err = s.reviewRepo.UpdateReview(ctx, review)
+	err = s.reviewRepo.Update(ctx, review)
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to update review", err)
 	}
@@ -195,6 +196,29 @@ func (s *reviewService) UpdateReview(ctx context.Context, reviewID string, userI
 	}
 
 	return review, nil
+}
+
+func (s *reviewService) Delete(ctx context.Context, reviewID string, userID string) error {
+	rID, err := primitive.ObjectIDFromHex(reviewID)
+	if err != nil {
+		return apperr.BadRequest("invalid review ID format", err)
+	}
+
+	review, err := s.reviewRepo.FindByID(ctx, rID)
+	if err != nil {
+		return apperr.InternalServerError("failed to fetch review", err)
+	}
+
+	if review.UserID.Hex() != userID {
+		return apperr.Unauthorized("you are not the owner of this review", nil)
+	}
+
+	err = s.reviewRepo.Delete(ctx, rID)
+	if err != nil {
+		return apperr.InternalServerError("failed to delete review", err)
+	}
+
+	return nil
 }
 
 func (s *reviewService) GetMyReviewsByDay(ctx context.Context, userID string, day int) ([]models.Review, error) {

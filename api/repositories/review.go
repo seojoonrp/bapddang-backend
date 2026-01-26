@@ -12,8 +12,9 @@ import (
 )
 
 type ReviewRepository interface {
-	CreateReview(ctx context.Context, review *models.Review) error
-	UpdateReview(ctx context.Context, review *models.Review) error
+	Create(ctx context.Context, review *models.Review) error
+	Update(ctx context.Context, review *models.Review) error
+	Delete(ctx context.Context, reviewID primitive.ObjectID) error
 	FindByUserIDAndDay(ctx context.Context, userID primitive.ObjectID, day int) ([]models.Review, error)
 	FindByID(ctx context.Context, reviewID primitive.ObjectID) (*models.Review, error)
 }
@@ -26,12 +27,12 @@ func NewReviewRepository(db *mongo.Database) ReviewRepository {
 	return &reviewRepository{collection: db.Collection("reviews")}
 }
 
-func (r *reviewRepository) CreateReview(ctx context.Context, review *models.Review) error {
+func (r *reviewRepository) Create(ctx context.Context, review *models.Review) error {
 	_, err := r.collection.InsertOne(ctx, review)
 	return err
 }
 
-func (r *reviewRepository) UpdateReview(ctx context.Context, review *models.Review) error {
+func (r *reviewRepository) Update(ctx context.Context, review *models.Review) error {
 	filter := bson.M{"_id": review.ID}
 	update := bson.M{
 		"$set": bson.M{
@@ -44,6 +45,11 @@ func (r *reviewRepository) UpdateReview(ctx context.Context, review *models.Revi
 	}
 
 	_, err := r.collection.UpdateOne(ctx, filter, update)
+	return err
+}
+
+func (r *reviewRepository) Delete(ctx context.Context, reviewID primitive.ObjectID) error {
+	_, err := r.collection.DeleteOne(ctx, bson.M{"_id": reviewID})
 	return err
 }
 

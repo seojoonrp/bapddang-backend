@@ -822,6 +822,59 @@ const docTemplate = `{
             }
         },
         "/reviews/{reviewID}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "특정 리뷰를 삭제한다.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Review"
+                ],
+                "summary": "리뷰 삭제",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "리뷰 ID",
+                        "name": "reviewID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "리뷰 삭제 성공",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "삭제 권한 없음",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
             "patch": {
                 "security": [
                     {
@@ -876,7 +929,7 @@ const docTemplate = `{
                             ]
                         }
                     },
-                    "403": {
+                    "401": {
                         "description": "수정 권한 없음",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
