@@ -100,7 +100,9 @@ func (r *reviewRepository) FindRecentWithStandardFood(ctx context.Context, limit
 	if err != nil {
 		return nil, err
 	}
+	defer cursor.Close(ctx)
 
+	reviews = []models.Review{}
 	if err = cursor.All(ctx, &reviews); err != nil {
 		return nil, err
 	}

@@ -301,29 +301,29 @@ func (s *userService) SyncUserDay(ctx context.Context, userID string) (bool, err
 	calculatedWeek := (calculatedDay-1)/7 + 1
 	weekUpdated := false
 
+	curM, err := s.marshmallowRepo.FindByUserIDAndWeek(ctx, uID, calculatedWeek)
+	if err != nil {
+		return false, apperr.InternalServerError("failed to fetch marshmallow", err)
+	}
+	if curM == nil {
+		newM := models.Marshmallow{
+			ID:          primitive.NewObjectID(),
+			UserID:      user.ID,
+			Week:        calculatedWeek,
+			ReviewCount: 0,
+			TotalRating: 0,
+			Status:      -1,
+			IsComplete:  false,
+		}
+		err := s.marshmallowRepo.Create(ctx, newM)
+		if err != nil {
+			return false, apperr.InternalServerError("failed to create marshmallow", err)
+		}
+	}
+
 	if user.Day < calculatedDay {
 		if user.Week < calculatedWeek {
 			weekUpdated = true
-
-			curM, err := s.marshmallowRepo.FindByUserIDAndWeek(ctx, uID, calculatedWeek)
-			if err != nil {
-				return false, apperr.InternalServerError("failed to fetch marshmallow", err)
-			}
-			if curM == nil {
-				newM := models.Marshmallow{
-					ID:          primitive.NewObjectID(),
-					UserID:      user.ID,
-					Week:        calculatedWeek,
-					ReviewCount: 0,
-					TotalRating: 0,
-					Status:      -1,
-					IsComplete:  false,
-				}
-				err := s.marshmallowRepo.Create(ctx, newM)
-				if err != nil {
-					return false, apperr.InternalServerError("failed to create marshmallow", err)
-				}
-			}
 
 			for week := user.Week; week < calculatedWeek; week++ {
 				m, _ := s.marshmallowRepo.FindByUserIDAndWeek(ctx, uID, week)

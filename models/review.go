@@ -39,3 +39,10 @@ type UpdateReviewRequest struct {
 	Comment  string `json:"comment"`
 	Rating   int    `json:"rating" binding:"required"`
 }
+
+type RecentReviewResponse struct {
+	Comment   string       `json:"comment"`
+	Rating    int          `json:"rating"`
+	CreatedAt time.Time    `json:"createdAt"`
+	Food      StandardFood `json:"food"`
+}

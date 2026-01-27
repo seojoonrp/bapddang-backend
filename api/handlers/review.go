@@ -165,13 +165,13 @@ func (h *ReviewHandler) GetMyReviewsByDay(c *gin.Context) {
 	})
 }
 
-// @Summary 표준 음식이 포함된 최신 리뷰 조회
-// @Description 표준 타입의 음식이 최소 하나 포함된 리뷰를 최신순으로 가져온다.
+// @Summary 최신 리뷰 조회
+// @Description 표준 타입의 음식이 적어도 하나 포함된 리뷰를 가져와 음식 정보와 함께 반환한다.
 // @Tags Review
 // @Accept json
 // @Produce json
 // @Param count query int false "가져올 리뷰 개수 (최대 3개)"
-// @Success 200 {object} response.Response{data=[]models.Review} "조회 성공"
+// @Success 200 {object} response.Response{data=[]models.RecentReviewResponse} "조회 성공"
 // @Router /reviews/recent [get]
 func (h *ReviewHandler) GetRecentWithStandardFood(c *gin.Context) {
 	countStr := c.DefaultQuery("count", "3")

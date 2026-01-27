@@ -17,7 +17,7 @@ type ReviewService interface {
 	Update(ctx context.Context, reviewID string, userID string, input models.UpdateReviewRequest) (*models.Review, error)
 	Delete(ctx context.Context, reviewID string, userID string) error
 	GetMyReviewsByDay(ctx context.Context, userID string, day int) ([]models.Review, error)
-	GetRecentWithStandardFood(ctx context.Context, count int) ([]models.Review, error)
+	GetRecentWithStandardFood(ctx context.Context, count int) ([]models.RecentReviewResponse, error)
 }
 
 type reviewService struct {
@@ -240,7 +240,7 @@ func (s *reviewService) GetMyReviewsByDay(ctx context.Context, userID string, da
 	return reviews, nil
 }
 
-func (s *reviewService) GetRecentWithStandardFood(ctx context.Context, count int) ([]models.Review, error) {
+func (s *reviewService) GetRecentWithStandardFood(ctx context.Context, count int) ([]models.RecentReviewResponse, error) {
 	if count <= 0 {
 		return nil, apperr.BadRequest("count must be a positive integer", nil)
 	}
@@ -253,5 +253,36 @@ func (s *reviewService) GetRecentWithStandardFood(ctx context.Context, count int
 		return nil, apperr.InternalServerError("failed to fetch recent reviews", err)
 	}
 
-	return reviews, nil
+	result := make([]models.RecentReviewResponse, 0, len(reviews))
+	for _, r := range reviews {
+		var firstStandardFood models.StandardFood
+
+		for _, f := range r.Foods {
+			if f.Type == models.FoodTypeStandard {
+				fID, err := primitive.ObjectIDFromHex(f.FoodID)
+				if err != nil {
+					return nil, apperr.InternalServerError("invalid food ID in review", err)
+				}
+				food, err := s.foodRepo.FindStandardByID(ctx, fID)
+				if err != nil {
+					return nil, apperr.InternalServerError("failed to fetch food details", err)
+				}
+				if food == nil {
+					return nil, apperr.InternalServerError("food not found for ID in review", nil)
+				}
+
+				firstStandardFood = *food
+				break
+			}
+		}
+
+		result = append(result, models.RecentReviewResponse{
+			Comment:   r.Comment,
+			Rating:    r.Rating,
+			CreatedAt: r.CreatedAt,
+			Food:      firstStandardFood,
+		})
+	}
+
+	return result, nil
 }

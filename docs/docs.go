@@ -823,7 +823,7 @@ const docTemplate = `{
         },
         "/reviews/recent": {
             "get": {
-                "description": "표준 타입의 음식이 최소 하나 포함된 리뷰를 최신순으로 가져온다.",
+                "description": "표준 타입의 음식이 적어도 하나 포함된 리뷰를 가져와 음식 정보와 함께 반환한다.",
                 "consumes": [
                     "application/json"
                 ],
@@ -833,7 +833,7 @@ const docTemplate = `{
                 "tags": [
                     "Review"
                 ],
-                "summary": "표준 음식이 포함된 최신 리뷰 조회",
+                "summary": "최신 리뷰 조회",
                 "parameters": [
                     {
                         "type": "integer",
@@ -856,7 +856,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/models.Review"
+                                                "$ref": "#/definitions/models.RecentReviewResponse"
                                             }
                                         }
                                     }
@@ -1332,6 +1332,23 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "week": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RecentReviewResponse": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "food": {
+                    "$ref": "#/definitions/models.StandardFood"
+                },
+                "rating": {
                     "type": "integer"
                 }
             }
