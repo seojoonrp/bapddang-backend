@@ -303,9 +303,10 @@ func (s *userService) SyncUserDay(ctx context.Context, userID string) (bool, err
 
 	curM, err := s.marshmallowRepo.FindByUserIDAndWeek(ctx, uID, calculatedWeek)
 	if err != nil {
-		return false, apperr.InternalServerError("failed to fetch marshmallow", err)
+		return false, apperr.InternalServerError("failed to fetch current week's marshmallow", err)
 	}
 	if curM == nil {
+		log.Println("No current week marshmallow found, creating new one")
 		newM := models.Marshmallow{
 			ID:          primitive.NewObjectID(),
 			UserID:      user.ID,

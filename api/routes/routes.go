@@ -56,7 +56,7 @@ func SetupRoutes(
 		{
 			foods.GET("/:foodID", foodHandler.GetStandardFoodByID)
 
-			protectedFoods := foods.Group("/")
+			protectedFoods := foods.Group("")
 			protectedFoods.Use(middleware.AuthMiddleware())
 			{
 				protectedFoods.POST("/:foodID/likes", likeHandler.LikeFood)
@@ -73,7 +73,7 @@ func SetupRoutes(
 		{
 			reviews.GET("/recent", reviewHandler.GetRecentWithStandardFood)
 
-			protectedReviews := reviews.Group("/")
+			protectedReviews := reviews.Group("")
 			protectedReviews.Use(middleware.AuthMiddleware())
 			{
 				protectedReviews.POST("", reviewHandler.Create)
