@@ -164,3 +164,31 @@ func (h *ReviewHandler) GetMyReviewsByDay(c *gin.Context) {
 		Data:    reviews,
 	})
 }
+
+// @Summary 표준 음식이 포함된 최신 리뷰 조회
+// @Description 표준 타입의 음식이 최소 하나 포함된 리뷰를 최신순으로 가져온다.
+// @Tags Review
+// @Accept json
+// @Produce json
+// @Param count query int false "가져올 리뷰 개수 (최대 3개)"
+// @Success 200 {object} response.Response{data=[]models.Review} "조회 성공"
+// @Router /reviews/recent [get]
+func (h *ReviewHandler) GetRecentWithStandardFood(c *gin.Context) {
+	countStr := c.DefaultQuery("count", "3")
+	count, err := strconv.Atoi(countStr)
+	if err != nil {
+		c.Error(apperr.BadRequest("invalid count query parameter", err))
+		return
+	}
+
+	reviews, err := h.reviewService.GetRecentWithStandardFood(c, count)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Response{
+		Success: true,
+		Data:    reviews,
+	})
+}

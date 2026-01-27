@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type ReviewRepository interface {
@@ -17,6 +18,7 @@ type ReviewRepository interface {
 	Delete(ctx context.Context, reviewID primitive.ObjectID) error
 	FindByUserIDAndDay(ctx context.Context, userID primitive.ObjectID, day int) ([]models.Review, error)
 	FindByID(ctx context.Context, reviewID primitive.ObjectID) (*models.Review, error)
+	FindRecentWithStandardFood(ctx context.Context, limit int64) ([]models.Review, error)
 }
 
 type reviewRepository struct {
@@ -80,4 +82,28 @@ func (r *reviewRepository) FindByID(ctx context.Context, reviewID primitive.Obje
 		return nil, err
 	}
 	return &review, nil
+}
+
+func (r *reviewRepository) FindRecentWithStandardFood(ctx context.Context, limit int64) ([]models.Review, error) {
+	var reviews []models.Review
+
+	filter := bson.M{
+		"foods": bson.M{
+			"$elemMatch": bson.M{"type": models.FoodTypeStandard},
+		},
+	}
+	options := options.Find().
+		SetSort(bson.D{{Key: "created_at", Value: -1}}).
+		SetLimit(limit)
+
+	cursor, err := r.collection.Find(ctx, filter, options)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = cursor.All(ctx, &reviews); err != nil {
+		return nil, err
+	}
+
+	return reviews, nil
 }

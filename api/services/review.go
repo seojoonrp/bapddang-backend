@@ -17,6 +17,7 @@ type ReviewService interface {
 	Update(ctx context.Context, reviewID string, userID string, input models.UpdateReviewRequest) (*models.Review, error)
 	Delete(ctx context.Context, reviewID string, userID string) error
 	GetMyReviewsByDay(ctx context.Context, userID string, day int) ([]models.Review, error)
+	GetRecentWithStandardFood(ctx context.Context, count int) ([]models.Review, error)
 }
 
 type reviewService struct {
@@ -234,6 +235,22 @@ func (s *reviewService) GetMyReviewsByDay(ctx context.Context, userID string, da
 	reviews, err := s.reviewRepo.FindByUserIDAndDay(ctx, uID, day)
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to fetch reviews", err)
+	}
+
+	return reviews, nil
+}
+
+func (s *reviewService) GetRecentWithStandardFood(ctx context.Context, count int) ([]models.Review, error) {
+	if count <= 0 {
+		return nil, apperr.BadRequest("count must be a positive integer", nil)
+	}
+	if count > 3 {
+		count = 3
+	}
+
+	reviews, err := s.reviewRepo.FindRecentWithStandardFood(ctx, int64(count))
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to fetch recent reviews", err)
 	}
 
 	return reviews, nil

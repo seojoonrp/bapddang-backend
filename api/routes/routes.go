@@ -70,11 +70,16 @@ func SetupRoutes(
 		}
 
 		reviews := apiV1.Group("/reviews")
-		reviews.Use(middleware.AuthMiddleware())
 		{
-			reviews.POST("", reviewHandler.Create)
-			reviews.PATCH("/:reviewID", reviewHandler.Update)
-			reviews.DELETE("/:reviewID", reviewHandler.Delete)
+			reviews.GET("/recent", reviewHandler.GetRecentWithStandardFood)
+
+			protectedReviews := reviews.Group("/")
+			protectedReviews.Use(middleware.AuthMiddleware())
+			{
+				protectedReviews.POST("", reviewHandler.Create)
+				protectedReviews.PATCH("/:reviewID", reviewHandler.Update)
+				protectedReviews.DELETE("/:reviewID", reviewHandler.Delete)
+			}
 		}
 
 		marshmallows := apiV1.Group("/marshmallows")
