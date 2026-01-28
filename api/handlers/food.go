@@ -151,7 +151,7 @@ func (h *FoodHandler) GetMainFeedFoods(c *gin.Context) {
 // @Param count query int true "조회 개수 (최대 10개)"
 // @Success 200 {object} response.Response{data=[]models.FoodLikeResponse} "조회 성공"
 // @Security BearerAuth
-// @Router /foods [get]
+// @Router /foods/category [get]
 func (h *FoodHandler) GetFoodsByCategories(c *gin.Context) {
 	userID, err := GetUserID(c)
 	if err != nil {

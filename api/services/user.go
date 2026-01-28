@@ -313,7 +313,7 @@ func (s *userService) SyncUserDay(ctx context.Context, userID string) (bool, err
 			Week:        calculatedWeek,
 			ReviewCount: 0,
 			TotalRating: 0,
-			Status:      -1,
+			Status:      -2,
 			IsComplete:  false,
 		}
 		err := s.marshmallowRepo.Create(ctx, newM)
@@ -348,6 +348,7 @@ func (s *userService) SyncUserDay(ctx context.Context, userID string) (bool, err
 					if err != nil {
 						return false, apperr.InternalServerError("failed to complete marshmallow", err)
 					}
+					log.Println("Successfully completed marshmallow for week", week)
 				}
 			}
 		}
@@ -356,7 +357,6 @@ func (s *userService) SyncUserDay(ctx context.Context, userID string) (bool, err
 		if err != nil {
 			return false, apperr.InternalServerError("failed to update user day/week", err)
 		}
-		log.Printf("Successfully updated user %s's day to %d and week to %d", user.Username, calculatedDay, calculatedWeek)
 	}
 
 	return weekUpdated, nil
