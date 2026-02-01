@@ -215,6 +215,33 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 	})
 }
 
+// @Summary 회원 탈퇴
+// @Description 현재 로그인한 유저의 계정을 삭제한다.
+// @Tags User
+// @Accept json
+// @Produce json
+// @Success 200 {object} response.Response{data=string} "성공 메시지"
+// @Security BearerAuth
+// @Router /users/me [delete]
+func (h *UserHandler) DeleteUser(c *gin.Context) {
+	userID, err := GetUserID(c)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	err = h.userService.Withdraw(c, userID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Response{
+		Success: true,
+		Data:    "user deleted successfully",
+	})
+}
+
 // @Summary Day 동기화
 // @Description 가입일로부터의 경과 일수를 바탕으로 유저의 Day와 Week을 업데이트하고, 마시멜로 상태를 동기화한다.
 // @Tags User

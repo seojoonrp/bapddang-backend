@@ -20,12 +20,8 @@ type Config struct {
 	JWTSecret string
 
 	GoogleWebClientID string
+	KakaoAdminKey     string
 	AppleBundleID     string
-
-	AWSAccessKeyID     string
-	AWSSecretAccessKey string
-	AWSS3BucketName    string
-	AWSRegion          string
 }
 
 var AppConfig *Config
@@ -45,12 +41,8 @@ func LoadConfig() {
 		JWTSecret: getEnv("JWT_SECRET_KEY", "default_secret"),
 
 		GoogleWebClientID: getEnv("GOOGLE_WEB_CLIENT_ID", ""),
+		KakaoAdminKey:     getEnv("KAKAO_ADMIN_KEY", ""),
 		AppleBundleID:     getEnv("APPLE_BUNDLE_ID", ""),
-
-		AWSAccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", ""),
-		AWSSecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", ""),
-		AWSS3BucketName:    getEnv("AWS_S3_BUCKET_NAME", ""),
-		AWSRegion:          getEnv("AWS_REGION", ""),
 	}
 }
 

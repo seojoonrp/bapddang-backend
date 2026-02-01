@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/MicahParks/keyfunc/v3"
@@ -294,6 +296,14 @@ func (s *userService) Withdraw(ctx context.Context, userID string) error {
 		return apperr.InternalServerError("invalid user ID in token", err)
 	}
 
+	user, err := s.userRepo.FindByID(ctx, uID)
+	if err != nil {
+		return apperr.InternalServerError("failed to fetch user", err)
+	}
+	if user == nil {
+		return apperr.NotFound("user not found", nil)
+	}
+
 	likedFoodIDs, err := s.likeRepo.FindFoodIDsByUserID(ctx, uID)
 	if err != nil {
 		return apperr.InternalServerError("failed to fetch liked foods", err)
@@ -348,7 +358,12 @@ func (s *userService) Withdraw(ctx context.Context, userID string) error {
 		}
 	}
 
-	// TODO : 소셜로그인 연동 해제
+	if user.LoginMethod != models.LoginMethodLocal {
+		err = s.handleSocialUnlink(user)
+		if err != nil {
+			log.Println("[WARNING] Failed to unlink social account while withdrawing user:", err)
+		}
+	}
 
 	err = s.reviewRepo.DeleteByUserID(ctx, uID)
 	err = s.likeRepo.DeleteByUserID(ctx, uID)
@@ -359,6 +374,70 @@ func (s *userService) Withdraw(ctx context.Context, userID string) error {
 		return apperr.InternalServerError("failed to delete user and related data", err)
 	}
 
+	return nil
+}
+
+func (s *userService) handleSocialUnlink(user *models.User) error {
+	switch user.LoginMethod {
+	case models.LoginMethodKakao:
+		return s.unlinkKakao(user.SocialID)
+	case models.LoginMethodApple:
+		return s.unlinkApple(user.AppleRefreshToken)
+	case models.LoginMethodGoogle:
+		return nil // 일단 구글은 안해도 될듯
+	default:
+		return nil
+	}
+}
+
+func (s *userService) unlinkKakao(socialID string) error {
+	client := &http.Client{}
+	data := url.Values{}
+	data.Set("target_id_type", "user_id")
+	data.Set("target_id", socialID)
+
+	req, _ := http.NewRequest("POST", "https://kapi.kakao.com/v1/user/unlink", strings.NewReader(data.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Authorization", "KakaoAK "+config.AppConfig.KakaoAdminKey)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("kakao unlink failed with status: %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (s *userService) unlinkApple(refreshToken string) error {
+	if refreshToken == "" {
+		return fmt.Errorf("refresh token is missing")
+	}
+
+	clientSecret, err := utils.GenerateAppleClientSecret()
+	if err != nil {
+		return err
+	}
+
+	client := &http.Client{}
+	data := url.Values{}
+	data.Set("client_id", config.AppConfig.AppleBundleID)
+	data.Set("client_secret", clientSecret)
+	data.Set("token", refreshToken)
+	data.Set("token_type_hint", "refresh_token")
+
+	resp, err := client.PostForm("https://appleid.apple.com/auth/keys/revoke", data)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("apple unlink failed with status: %d", resp.StatusCode)
+	}
 	return nil
 }
 

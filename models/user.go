@@ -16,15 +16,16 @@ const (
 )
 
 type User struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Username    string             `bson:"username" json:"username"`
-	SocialID    string             `bson:"social_id,omitempty" json:"-"`
-	Password    string             `bson:"password,omitempty" json:"-"`
-	Email       string             `bson:"email,omitempty" json:"email"`
-	LoginMethod string             `bson:"login_method" json:"loginMethod"`
-	Day         int                `bson:"day" json:"day"`
-	Week        int                `bson:"week" json:"week"`
-	CreatedAt   time.Time          `bson:"created_at" json:"createdAt"`
+	ID                primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Username          string             `bson:"username" json:"username"`
+	SocialID          string             `bson:"social_id,omitempty" json:"-"`
+	Password          string             `bson:"password,omitempty" json:"-"`
+	Email             string             `bson:"email,omitempty" json:"email"`
+	LoginMethod       string             `bson:"login_method" json:"loginMethod"`
+	Day               int                `bson:"day" json:"day"`
+	Week              int                `bson:"week" json:"week"`
+	CreatedAt         time.Time          `bson:"created_at" json:"createdAt"`
+	AppleRefreshToken string             `bson:"apple_refresh_token,omitempty" json:"-"`
 }
 
 type SignUpRequest struct {
@@ -46,11 +47,8 @@ type KakaoLoginRequest struct {
 }
 
 type AppleLoginRequest struct {
-	IdentityToken string `json:"identityToken" binding:"required"`
-	FullName      struct {
-		GivenName  string `json:"givenName"`
-		FamilyName string `json:"familyName"`
-	} `json:"fullName"`
+	IdentityToken     string `json:"identityToken" binding:"required"`
+	AuthorizationCode string `json:"authorizationCode"`
 }
 
 type LoginResponse struct {
