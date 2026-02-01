@@ -18,6 +18,8 @@ type ReviewRepository interface {
 	Delete(ctx context.Context, reviewID primitive.ObjectID) error
 	FindByUserIDAndDay(ctx context.Context, userID primitive.ObjectID, day int) ([]models.Review, error)
 	FindByID(ctx context.Context, reviewID primitive.ObjectID) (*models.Review, error)
+	FindAllByUserID(ctx context.Context, userID primitive.ObjectID) ([]models.Review, error)
+	DeleteByUserID(ctx context.Context, userID primitive.ObjectID) error
 	FindRecentWithStandardFood(ctx context.Context, limit int64) ([]models.Review, error)
 }
 
@@ -82,6 +84,28 @@ func (r *reviewRepository) FindByID(ctx context.Context, reviewID primitive.Obje
 		return nil, err
 	}
 	return &review, nil
+}
+
+func (r *reviewRepository) FindAllByUserID(ctx context.Context, userID primitive.ObjectID) ([]models.Review, error) {
+	var reviews []models.Review
+
+	filter := bson.M{"user_id": userID}
+	cursor, err := r.collection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	if err = cursor.All(ctx, &reviews); err != nil {
+		return nil, err
+	}
+
+	return reviews, nil
+}
+
+func (r *reviewRepository) DeleteByUserID(ctx context.Context, userID primitive.ObjectID) error {
+	_, err := r.collection.DeleteMany(ctx, bson.M{"user_id": userID})
+	return err
 }
 
 func (r *reviewRepository) FindRecentWithStandardFood(ctx context.Context, limit int64) ([]models.Review, error) {

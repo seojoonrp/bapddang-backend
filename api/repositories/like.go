@@ -17,6 +17,7 @@ type LikeRepository interface {
 	Delete(ctx context.Context, userID, foodID primitive.ObjectID) (int64, error)
 	CheckLikedStatus(ctx context.Context, userID primitive.ObjectID, foodIDs []primitive.ObjectID) (map[primitive.ObjectID]bool, error)
 	FindFoodIDsByUserID(ctx context.Context, userID primitive.ObjectID) ([]primitive.ObjectID, error)
+	DeleteByUserID(ctx context.Context, userID primitive.ObjectID) error
 }
 
 type likeRepository struct {
@@ -90,4 +91,9 @@ func (r *likeRepository) FindFoodIDsByUserID(ctx context.Context, userID primiti
 	}
 
 	return foodIDs, nil
+}
+
+func (r *likeRepository) DeleteByUserID(ctx context.Context, userID primitive.ObjectID) error {
+	_, err := r.collection.DeleteMany(ctx, bson.M{"user_id": userID})
+	return err
 }

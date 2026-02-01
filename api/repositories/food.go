@@ -25,7 +25,9 @@ type FoodRepository interface {
 
 	UpdateStandardCreatedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, rating int) error
 	UpdateStandardModifiedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, oldRating, newRating int) error
+	UpdateStandardDeletedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, rating int) error
 	UpdateCustomCreatedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID) error
+	UpdateCustomDeletedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID) error
 
 	IncrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error
 	DecrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error
@@ -164,9 +166,28 @@ func (r *foodRepository) UpdateStandardModifiedReviewStats(ctx context.Context, 
 	return err
 }
 
+func (r *foodRepository) UpdateStandardDeletedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID, rating int) error {
+	filter := bson.M{"_id": bson.M{"$in": foodIDs}}
+
+	incMap := bson.M{"review_count": -1}
+	incMap["total_rating"] = -rating
+
+	update := bson.M{"$inc": incMap}
+	_, err := r.standardFoodCollection.UpdateMany(ctx, filter, update)
+	return err
+}
+
 func (r *foodRepository) UpdateCustomCreatedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID) error {
 	filter := bson.M{"_id": bson.M{"$in": foodIDs}}
 	update := bson.M{"$inc": bson.M{"review_count": 1}}
+
+	_, err := r.customFoodCollection.UpdateMany(ctx, filter, update)
+	return err
+}
+
+func (r *foodRepository) UpdateCustomDeletedReviewStats(ctx context.Context, foodIDs []primitive.ObjectID) error {
+	filter := bson.M{"_id": bson.M{"$in": foodIDs}}
+	update := bson.M{"$inc": bson.M{"review_count": -1}}
 
 	_, err := r.customFoodCollection.UpdateMany(ctx, filter, update)
 	return err

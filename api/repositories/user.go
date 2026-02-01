@@ -15,6 +15,7 @@ type UserRepository interface {
 	FindByID(ctx context.Context, userID primitive.ObjectID) (*models.User, error)
 	FindByUsername(ctx context.Context, username string) (*models.User, error)
 	Create(ctx context.Context, user *models.User) error
+	Delete(ctx context.Context, userID primitive.ObjectID) error
 	UpdateDayAndWeek(ctx context.Context, userID primitive.ObjectID, newDay int, newWeek int) error
 }
 
@@ -60,5 +61,10 @@ func (r *userRepository) UpdateDayAndWeek(ctx context.Context, userID primitive.
 	update := bson.M{"$set": bson.M{"day": newDay, "week": newWeek}}
 
 	_, err := r.collection.UpdateOne(ctx, filter, update)
+	return err
+}
+
+func (r *userRepository) Delete(ctx context.Context, userID primitive.ObjectID) error {
+	_, err := r.collection.DeleteOne(ctx, bson.M{"_id": userID})
 	return err
 }

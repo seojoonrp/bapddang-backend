@@ -79,18 +79,14 @@ func (s *reviewService) Create(ctx context.Context, req models.CreateReviewReque
 	var customFoodIDs []primitive.ObjectID
 
 	for _, foodItem := range newReview.Foods {
+		foodID, err := primitive.ObjectIDFromHex(foodItem.FoodID)
+		if err != nil {
+			continue
+		}
 		if foodItem.Type == models.FoodTypeStandard {
-			foodID, err := primitive.ObjectIDFromHex(foodItem.FoodID)
-			if err != nil {
-				continue
-			}
 			standardFoodIDs = append(standardFoodIDs, foodID)
 		}
 		if foodItem.Type == models.FoodTypeCustom {
-			foodID, err := primitive.ObjectIDFromHex(foodItem.FoodID)
-			if err != nil {
-				continue
-			}
 			customFoodIDs = append(customFoodIDs, foodID)
 		}
 	}
@@ -212,6 +208,35 @@ func (s *reviewService) Delete(ctx context.Context, reviewID string, userID stri
 
 	if review.UserID.Hex() != userID {
 		return apperr.Unauthorized("you are not the owner of this review", nil)
+	}
+
+	var standardFoodIDs []primitive.ObjectID
+	var customFoodIDs []primitive.ObjectID
+
+	for _, foodItem := range review.Foods {
+		foodID, err := primitive.ObjectIDFromHex(foodItem.FoodID)
+		if err != nil {
+			continue
+		}
+		if foodItem.Type == models.FoodTypeStandard {
+			standardFoodIDs = append(standardFoodIDs, foodID)
+		}
+		if foodItem.Type == models.FoodTypeCustom {
+			customFoodIDs = append(customFoodIDs, foodID)
+		}
+	}
+
+	if len(standardFoodIDs) > 0 {
+		err = s.foodRepo.UpdateStandardDeletedReviewStats(ctx, standardFoodIDs, review.Rating)
+		if err != nil {
+			return apperr.InternalServerError("failed to update food review stats", err)
+		}
+	}
+	if len(customFoodIDs) > 0 {
+		err = s.foodRepo.UpdateCustomDeletedReviewStats(ctx, customFoodIDs)
+		if err != nil {
+			return apperr.InternalServerError("failed to update custom food review stats", err)
+		}
 	}
 
 	err = s.reviewRepo.Delete(ctx, rID)

@@ -14,6 +14,7 @@ import (
 type RecHistoryRepository interface {
 	SaveHistory(ctx context.Context, history models.RecHistory) error
 	GetRecentFoodIDsMap(ctx context.Context, userID primitive.ObjectID, days int) (map[primitive.ObjectID]time.Time, error)
+	DeleteByUserID(ctx context.Context, userID primitive.ObjectID) error
 }
 
 type recHistoryRepo struct {
@@ -60,4 +61,9 @@ func (r *recHistoryRepo) GetRecentFoodIDsMap(ctx context.Context, userID primiti
 		}
 	}
 	return historyMap, nil
+}
+
+func (r *recHistoryRepo) DeleteByUserID(ctx context.Context, userID primitive.ObjectID) error {
+	_, err := r.collection.DeleteMany(ctx, primitive.M{"user_id": userID})
+	return err
 }

@@ -18,6 +18,7 @@ type MarshmallowRepository interface {
 	CompleteMarshmallow(ctx context.Context, marshmallowID primitive.ObjectID, status int) error
 	FindByUserIDAndWeek(ctx context.Context, userID primitive.ObjectID, week int) (*models.Marshmallow, error)
 	FindByUserID(ctx context.Context, userID primitive.ObjectID) ([]models.Marshmallow, error)
+	DeleteByUserID(ctx context.Context, userID primitive.ObjectID) error
 }
 
 type marshmallowRepository struct {
@@ -108,4 +109,9 @@ func (r *marshmallowRepository) FindByUserID(ctx context.Context, userID primiti
 	}
 
 	return marshmallows, nil
+}
+
+func (r *marshmallowRepository) DeleteByUserID(ctx context.Context, userID primitive.ObjectID) error {
+	_, err := r.collection.DeleteMany(ctx, primitive.M{"user_id": userID})
+	return err
 }

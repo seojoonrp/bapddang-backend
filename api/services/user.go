@@ -46,17 +46,29 @@ type UserService interface {
 	LoginWithKakao(ctx context.Context, accessToken string) (models.LoginResponse, error)
 	LoginWithApple(ctx context.Context, identityToken string) (models.LoginResponse, error)
 
+	Withdraw(ctx context.Context, userID string) error
+
 	SyncUserDay(ctx context.Context, userID string) (bool, error)
 }
 
 type userService struct {
 	userRepo        repositories.UserRepository
 	foodRepo        repositories.FoodRepository
+	reviewRepo      repositories.ReviewRepository
+	likeRepo        repositories.LikeRepository
 	marshmallowRepo repositories.MarshmallowRepository
+	recHistoryRepo  repositories.RecHistoryRepository
 }
 
-func NewUserService(ur repositories.UserRepository, fr repositories.FoodRepository, mr repositories.MarshmallowRepository) UserService {
-	return &userService{userRepo: ur, foodRepo: fr, marshmallowRepo: mr}
+func NewUserService(
+	ur repositories.UserRepository,
+	fr repositories.FoodRepository,
+	rr repositories.ReviewRepository,
+	lr repositories.LikeRepository,
+	mr repositories.MarshmallowRepository,
+	rhr repositories.RecHistoryRepository,
+) UserService {
+	return &userService{userRepo: ur, foodRepo: fr, reviewRepo: rr, likeRepo: lr, marshmallowRepo: mr, recHistoryRepo: rhr}
 }
 
 func (s *userService) CheckUsernameExists(ctx context.Context, username string) (bool, error) {
@@ -274,6 +286,80 @@ func (s *userService) LoginWithApple(ctx context.Context, identityToken string) 
 	email, _ := claims["email"].(string)
 
 	return s.loginWithSocial(ctx, models.LoginMethodApple, socialID, email)
+}
+
+func (s *userService) Withdraw(ctx context.Context, userID string) error {
+	uID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return apperr.InternalServerError("invalid user ID in token", err)
+	}
+
+	likedFoodIDs, err := s.likeRepo.FindFoodIDsByUserID(ctx, uID)
+	if err != nil {
+		return apperr.InternalServerError("failed to fetch liked foods", err)
+	}
+
+	reviews, err := s.reviewRepo.FindAllByUserID(ctx, uID)
+	if err != nil {
+		return apperr.InternalServerError("failed to fetch user reviews", err)
+	}
+
+	for _, fID := range likedFoodIDs {
+		err := s.foodRepo.DecrementLikeCount(ctx, fID)
+		if err != nil {
+			log.Println("[WARNING] Failed to decrement like count while withdrawing user:", err)
+			continue
+		}
+	}
+
+	for _, review := range reviews {
+		if review.UserID != uID {
+			log.Println("[WARNING] Review user ID does not match while withdrawing user")
+			continue
+		}
+
+		var standardFoodIDs []primitive.ObjectID
+		var customFoodIDs []primitive.ObjectID
+
+		for _, foodItem := range review.Foods {
+			foodID, err := primitive.ObjectIDFromHex(foodItem.FoodID)
+			if err != nil {
+				continue
+			}
+			if foodItem.Type == models.FoodTypeStandard {
+				standardFoodIDs = append(standardFoodIDs, foodID)
+			}
+			if foodItem.Type == models.FoodTypeCustom {
+				customFoodIDs = append(customFoodIDs, foodID)
+			}
+		}
+
+		if len(standardFoodIDs) > 0 {
+			err = s.foodRepo.UpdateStandardDeletedReviewStats(ctx, standardFoodIDs, review.Rating)
+			if err != nil {
+				continue
+			}
+		}
+		if len(customFoodIDs) > 0 {
+			err = s.foodRepo.UpdateCustomDeletedReviewStats(ctx, customFoodIDs)
+			if err != nil {
+				continue
+			}
+		}
+	}
+
+	// TODO : 소셜로그인 연동 해제
+
+	err = s.reviewRepo.DeleteByUserID(ctx, uID)
+	err = s.likeRepo.DeleteByUserID(ctx, uID)
+	err = s.marshmallowRepo.DeleteByUserID(ctx, uID)
+	err = s.recHistoryRepo.DeleteByUserID(ctx, uID)
+	err = s.userRepo.Delete(ctx, uID)
+	if err != nil {
+		return apperr.InternalServerError("failed to delete user and related data", err)
+	}
+
+	return nil
 }
 
 func (s *userService) SyncUserDay(ctx context.Context, userID string) (bool, error) {
