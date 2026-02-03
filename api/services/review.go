@@ -50,6 +50,11 @@ func (s *reviewService) Create(ctx context.Context, req models.CreateReviewReque
 		return nil, apperr.BadRequest("rating must be between 1 and 5", nil)
 	}
 
+	commentLen := len([]rune(req.Comment))
+	if commentLen > 50 || commentLen <= 0 {
+		return nil, apperr.BadRequest("comment must be between 1 and 50 characters", nil)
+	}
+
 	user, err := s.userRepo.FindByID(ctx, uID)
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to fetch user", err)
@@ -136,6 +141,11 @@ func (s *reviewService) Update(ctx context.Context, reviewID string, userID stri
 
 	if req.Rating <= 0 || req.Rating > 5 {
 		return nil, apperr.BadRequest("rating must be in between 1 and 5", nil)
+	}
+
+	commentLen := len([]rune(req.Comment))
+	if commentLen > 50 || commentLen <= 0 {
+		return nil, apperr.BadRequest("comment must be between 1 and 50 characters", nil)
 	}
 
 	user, err := s.userRepo.FindByID(ctx, review.UserID)

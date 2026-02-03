@@ -72,6 +72,11 @@ func NewUserService(
 }
 
 func (s *userService) CheckUsernameExists(ctx context.Context, username string) (bool, error) {
+	runes := []rune(username)
+	if len(runes) < 3 || len(runes) > 15 {
+		return false, apperr.BadRequest("username must be between 3 and 15 characters", nil)
+	}
+
 	user, err := s.userRepo.FindByUsername(ctx, username)
 	if err != nil {
 		return false, apperr.InternalServerError("failed to fetch user", err)
