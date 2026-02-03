@@ -87,7 +87,7 @@ func initRecHistoryIndexes(coll *mongo.Collection) {
 
 	createIndex(coll, mongo.IndexModel{
 		Keys:    bson.D{{Key: "created_at", Value: 1}},
-		Options: options.Index().SetExpireAfterSeconds(60 * 60 * 24 * 7).SetName("idx_rec_history_ttl"),
+		Options: options.Index().SetExpireAfterSeconds(60 * 60 * 24 * 3).SetName("idx_rec_history_ttl"),
 	})
 }
 

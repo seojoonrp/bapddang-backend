@@ -7,13 +7,16 @@ import (
 	"time"
 
 	"github.com/seojoonrp/bapddang-server/models"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type RecHistoryRepository interface {
 	SaveHistory(ctx context.Context, history models.RecHistory) error
 	GetRecentFoodIDsMap(ctx context.Context, userID primitive.ObjectID, days int) (map[primitive.ObjectID]time.Time, error)
+	GetLatestParents(ctx context.Context, userID primitive.ObjectID, days int) ([]string, error)
 	DeleteByUserID(ctx context.Context, userID primitive.ObjectID) error
 }
 
@@ -34,9 +37,9 @@ func (r *recHistoryRepo) SaveHistory(ctx context.Context, history models.RecHist
 
 func (r *recHistoryRepo) GetRecentFoodIDsMap(ctx context.Context, userID primitive.ObjectID, days int) (map[primitive.ObjectID]time.Time, error) {
 	threshold := time.Now().AddDate(0, 0, -days)
-	filter := primitive.M{
+	filter := bson.M{
 		"user_id":    userID,
-		"created_at": primitive.M{"$gte": threshold},
+		"created_at": bson.M{"$gte": threshold},
 	}
 
 	cursor, err := r.collection.Find(ctx, filter)
@@ -63,7 +66,27 @@ func (r *recHistoryRepo) GetRecentFoodIDsMap(ctx context.Context, userID primiti
 	return historyMap, nil
 }
 
+func (r *recHistoryRepo) GetLatestParents(ctx context.Context, userID primitive.ObjectID, days int) ([]string, error) {
+	threshold := time.Now().AddDate(0, 0, -days)
+	filter := bson.M{
+		"user_id":    userID,
+		"created_at": bson.M{"$gte": threshold},
+	}
+	opts := options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}})
+
+	var history models.RecHistory
+	err := r.collection.FindOne(ctx, filter, opts).Decode(&history)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return []string{}, nil
+		}
+		return nil, err
+	}
+
+	return history.Parents, nil
+}
+
 func (r *recHistoryRepo) DeleteByUserID(ctx context.Context, userID primitive.ObjectID) error {
-	_, err := r.collection.DeleteMany(ctx, primitive.M{"user_id": userID})
+	_, err := r.collection.DeleteMany(ctx, bson.M{"user_id": userID})
 	return err
 }

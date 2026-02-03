@@ -36,6 +36,22 @@ func NewReviewService(rr repositories.ReviewRepository, fr repositories.FoodRepo
 	}
 }
 
+func (s *reviewService) classifyFoodItems(foods []models.ReviewFoodItem) ([]primitive.ObjectID, []primitive.ObjectID) {
+	var standards, customs []primitive.ObjectID
+	for _, f := range foods {
+		id, err := primitive.ObjectIDFromHex(f.FoodID)
+		if err != nil {
+			continue
+		}
+		if f.Type == models.FoodTypeStandard {
+			standards = append(standards, id)
+		} else if f.Type == models.FoodTypeCustom {
+			customs = append(customs, id)
+		}
+	}
+	return standards, customs
+}
+
 func (s *reviewService) Create(ctx context.Context, req models.CreateReviewRequest, userID string) (*models.Review, error) {
 	uID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
@@ -80,21 +96,7 @@ func (s *reviewService) Create(ctx context.Context, req models.CreateReviewReque
 		return nil, apperr.InternalServerError("failed to save review", err)
 	}
 
-	var standardFoodIDs []primitive.ObjectID
-	var customFoodIDs []primitive.ObjectID
-
-	for _, foodItem := range newReview.Foods {
-		foodID, err := primitive.ObjectIDFromHex(foodItem.FoodID)
-		if err != nil {
-			continue
-		}
-		if foodItem.Type == models.FoodTypeStandard {
-			standardFoodIDs = append(standardFoodIDs, foodID)
-		}
-		if foodItem.Type == models.FoodTypeCustom {
-			customFoodIDs = append(customFoodIDs, foodID)
-		}
-	}
+	standardFoodIDs, customFoodIDs := s.classifyFoodItems(req.Foods)
 
 	if len(standardFoodIDs) > 0 {
 		err = s.foodRepo.UpdateStandardCreatedReviewStats(ctx, standardFoodIDs, newReview.Rating)
@@ -170,16 +172,7 @@ func (s *reviewService) Update(ctx context.Context, reviewID string, userID stri
 		return nil, apperr.InternalServerError("failed to update review", err)
 	}
 
-	var standardFoodIDs []primitive.ObjectID
-	for _, foodItem := range review.Foods {
-		if foodItem.Type == models.FoodTypeStandard {
-			foodID, err := primitive.ObjectIDFromHex(foodItem.FoodID)
-			if err != nil {
-				continue
-			}
-			standardFoodIDs = append(standardFoodIDs, foodID)
-		}
-	}
+	standardFoodIDs, _ := s.classifyFoodItems(review.Foods)
 
 	if len(standardFoodIDs) > 0 && oldRating != review.Rating {
 		err = s.foodRepo.UpdateStandardModifiedReviewStats(ctx, standardFoodIDs, oldRating, review.Rating)
@@ -220,21 +213,7 @@ func (s *reviewService) Delete(ctx context.Context, reviewID string, userID stri
 		return apperr.Unauthorized("you are not the owner of this review", nil)
 	}
 
-	var standardFoodIDs []primitive.ObjectID
-	var customFoodIDs []primitive.ObjectID
-
-	for _, foodItem := range review.Foods {
-		foodID, err := primitive.ObjectIDFromHex(foodItem.FoodID)
-		if err != nil {
-			continue
-		}
-		if foodItem.Type == models.FoodTypeStandard {
-			standardFoodIDs = append(standardFoodIDs, foodID)
-		}
-		if foodItem.Type == models.FoodTypeCustom {
-			customFoodIDs = append(customFoodIDs, foodID)
-		}
-	}
+	standardFoodIDs, customFoodIDs := s.classifyFoodItems(review.Foods)
 
 	if len(standardFoodIDs) > 0 {
 		err = s.foodRepo.UpdateStandardDeletedReviewStats(ctx, standardFoodIDs, review.Rating)

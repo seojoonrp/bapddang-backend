@@ -153,13 +153,13 @@ func (s *foodService) ResolveFoodItems(ctx context.Context, names []string) ([]m
 }
 
 func (s *foodService) getRecommendedFoods(ctx context.Context, userID primitive.ObjectID, speed string, count int) ([]models.StandardFood, error) {
-	candidateCount := count * 5
+	candidateCount := count * 7
 	candidates, err := s.foodRepo.GetRandomStandards(ctx, speed, nil, candidateCount)
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to get candidate foods", err)
 	}
 
-	historyMap, err := s.recHistoryRepo.GetRecentFoodIDsMap(ctx, userID, 3)
+	historyMap, err := s.recHistoryRepo.GetRecentFoodIDsMap(ctx, userID, 2)
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to get recommendation history", err)
 	}
@@ -177,9 +177,9 @@ func (s *foodService) getRecommendedFoods(ctx context.Context, userID primitive.
 			hoursSinceSeen := now.Sub(lastSeen).Hours()
 			if hoursSinceSeen < 1 {
 				weight = 0.01
-			} else if hoursSinceSeen < 18 {
+			} else if hoursSinceSeen < 6 {
 				weight = 0.1
-			} else if hoursSinceSeen < 42 {
+			} else if hoursSinceSeen < 18 {
 				weight = 0.4
 			} else {
 				weight = 0.8
@@ -197,7 +197,16 @@ func (s *foodService) getRecommendedFoods(ctx context.Context, userID primitive.
 	})
 
 	var finalFoods []models.StandardFood
+
+	excludedParents, err := s.recHistoryRepo.GetLatestParents(ctx, userID, 7)
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to get latest parents from history", err)
+	}
+
 	usedParents := make(map[string]bool)
+	for _, parent := range excludedParents {
+		usedParents[parent] = true
+	}
 
 	for _, sf := range scoredList {
 		if len(finalFoods) >= count {
@@ -223,14 +232,39 @@ func (s *foodService) getRecommendedFoods(ctx context.Context, userID primitive.
 		}
 	}
 
+	// 혹시라도 부족할 시 부모 상관없이 채우기
+	if len(finalFoods) < count {
+		log.Printf("[REC_DEBUG] Result insufficient (%d/%d), adding fallback items", len(finalFoods), count)
+		for _, sf := range scoredList {
+			if len(finalFoods) >= count {
+				break
+			}
+
+			alreadyAdded := false
+			for _, f := range finalFoods {
+				if f.ID == sf.food.ID {
+					alreadyAdded = true
+					break
+				}
+			}
+
+			if !alreadyAdded {
+				finalFoods = append(finalFoods, sf.food)
+			}
+		}
+	}
+
 	finalIDs := make([]primitive.ObjectID, 0, len(finalFoods))
+	finalParents := make([]string, 0)
 	for _, food := range finalFoods {
 		finalIDs = append(finalIDs, food.ID)
+		finalParents = append(finalParents, food.Parents...)
 	}
 	newHistory := models.RecHistory{
 		ID:        primitive.NewObjectID(),
 		UserID:    userID,
 		FoodIDs:   finalIDs,
+		Parents:   finalParents,
 		CreatedAt: now,
 	}
 
