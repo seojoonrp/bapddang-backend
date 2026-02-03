@@ -22,6 +22,9 @@ type Config struct {
 	GoogleWebClientID string
 	KakaoAdminKey     string
 	AppleBundleID     string
+	AppleP8Key        string
+	AppleTeamID       string
+	AppleKeyID        string
 }
 
 var AppConfig *Config
@@ -43,6 +46,9 @@ func LoadConfig() {
 		GoogleWebClientID: getEnv("GOOGLE_WEB_CLIENT_ID", ""),
 		KakaoAdminKey:     getEnv("KAKAO_ADMIN_KEY", ""),
 		AppleBundleID:     getEnv("APPLE_BUNDLE_ID", ""),
+		AppleP8Key:        getEnv("APPLE_P8_KEY", ""),
+		AppleTeamID:       getEnv("APPLE_TEAM_ID", ""),
+		AppleKeyID:        getEnv("APPLE_KEY_ID", ""),
 	}
 }
 

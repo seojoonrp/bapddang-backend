@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MicahParks/keyfunc/v3"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/seojoonrp/bapddang-server/api/repositories"
 	"github.com/seojoonrp/bapddang-server/apperr"
 	"github.com/seojoonrp/bapddang-server/config"
@@ -42,11 +40,11 @@ type UserService interface {
 	CheckUsernameExists(ctx context.Context, username string) (bool, error)
 	GetUserByID(ctx context.Context, userID string) (*models.User, error)
 	SignUp(ctx context.Context, req models.SignUpRequest) error
-	Login(ctx context.Context, input models.LoginRequest) (models.LoginResponse, error)
+	Login(ctx context.Context, req models.LoginRequest) (models.LoginResponse, error)
 
-	LoginWithGoogle(ctx context.Context, idToken string) (models.LoginResponse, error)
-	LoginWithKakao(ctx context.Context, accessToken string) (models.LoginResponse, error)
-	LoginWithApple(ctx context.Context, identityToken string) (models.LoginResponse, error)
+	LoginWithGoogle(ctx context.Context, req models.GoogleLoginRequest) (models.LoginResponse, error)
+	LoginWithKakao(ctx context.Context, req models.KakaoLoginRequest) (models.LoginResponse, error)
+	LoginWithApple(ctx context.Context, req models.AppleLoginRequest) (models.LoginResponse, error)
 
 	Withdraw(ctx context.Context, userID string) error
 
@@ -202,10 +200,10 @@ func (s *userService) loginWithSocial(ctx context.Context, provider string, soci
 	}, nil
 }
 
-func (s *userService) LoginWithGoogle(ctx context.Context, idToken string) (models.LoginResponse, error) {
+func (s *userService) LoginWithGoogle(ctx context.Context, req models.GoogleLoginRequest) (models.LoginResponse, error) {
 	webClientID := config.AppConfig.GoogleWebClientID
 
-	payload, err := idtoken.Validate(context.Background(), idToken, webClientID)
+	payload, err := idtoken.Validate(context.Background(), req.IDToken, webClientID)
 	if err != nil {
 		return models.LoginResponse{}, apperr.Unauthorized("invalid Google ID token", err)
 	}
@@ -216,12 +214,12 @@ func (s *userService) LoginWithGoogle(ctx context.Context, idToken string) (mode
 	return s.loginWithSocial(ctx, models.LoginMethodGoogle, socialID, email)
 }
 
-func (s *userService) LoginWithKakao(ctx context.Context, accessToken string) (models.LoginResponse, error) {
+func (s *userService) LoginWithKakao(ctx context.Context, req models.KakaoLoginRequest) (models.LoginResponse, error) {
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", "https://kapi.kakao.com/v2/user/me", nil)
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+	httpReq, _ := http.NewRequest("GET", "https://kapi.kakao.com/v2/user/me", nil)
+	httpReq.Header.Set("Authorization", "Bearer "+req.AccessToken)
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(httpReq)
 	if err != nil {
 		return models.LoginResponse{}, apperr.ServiceUnavailable("kakao api server unreachable", err)
 	}
@@ -251,35 +249,9 @@ func (s *userService) LoginWithKakao(ctx context.Context, accessToken string) (m
 	return s.loginWithSocial(ctx, models.LoginMethodKakao, socialID, email)
 }
 
-func (s *userService) verifyAppleToken(identityToken string, clientID string) (jwt.MapClaims, error) {
-	appleJWKSURL := "https://appleid.apple.com/auth/keys"
-
-	k, err := keyfunc.NewDefault([]string{appleJWKSURL})
-	if err != nil {
-		return nil, apperr.InternalServerError("failed to create keyfunc", err)
-	}
-
-	token, err := jwt.Parse(identityToken, k.Keyfunc)
-	if err != nil {
-		return nil, apperr.InternalServerError("invalid token", err)
-	}
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		if claims["iss"] != "https://appleid.apple.com" {
-			return nil, apperr.Unauthorized("invalid issuer", nil)
-		}
-		if claims["aud"] != clientID {
-			return nil, apperr.Unauthorized("invalid audience", nil)
-		}
-		return claims, nil
-	}
-
-	return nil, apperr.Unauthorized("invalid token claims", nil)
-}
-
-func (s *userService) LoginWithApple(ctx context.Context, identityToken string) (models.LoginResponse, error) {
+func (s *userService) LoginWithApple(ctx context.Context, req models.AppleLoginRequest) (models.LoginResponse, error) {
 	clientID := config.AppConfig.AppleBundleID
-	claims, err := s.verifyAppleToken(identityToken, clientID)
+	claims, err := utils.VerifyAppleToken(req.IdentityToken, clientID)
 	if err != nil {
 		return models.LoginResponse{}, err
 	}
@@ -287,7 +259,23 @@ func (s *userService) LoginWithApple(ctx context.Context, identityToken string) 
 	socialID, _ := claims["sub"].(string)
 	email, _ := claims["email"].(string)
 
-	return s.loginWithSocial(ctx, models.LoginMethodApple, socialID, email)
+	res, err := s.loginWithSocial(ctx, models.LoginMethodApple, socialID, email)
+	if err != nil {
+		return models.LoginResponse{}, err
+	}
+
+	if req.AuthorizationCode != "" {
+		refreshToken, err := utils.GetAppleRefreshToken(req.AuthorizationCode)
+		if err == nil {
+			err = s.userRepo.UpdateAppleRefreshToken(ctx, res.User.ID, refreshToken)
+			if err != nil {
+				log.Println("[WARNING] Failed to update apple refresh token:", err)
+			}
+			res.User.AppleRefreshToken = refreshToken
+		}
+	}
+
+	return res, nil
 }
 
 func (s *userService) Withdraw(ctx context.Context, userID string) error {
@@ -422,6 +410,8 @@ func (s *userService) unlinkApple(refreshToken string) error {
 		return err
 	}
 
+	revokeURL := "https://appleid.apple.com/auth/revoke"
+
 	client := &http.Client{}
 	data := url.Values{}
 	data.Set("client_id", config.AppConfig.AppleBundleID)
@@ -429,7 +419,7 @@ func (s *userService) unlinkApple(refreshToken string) error {
 	data.Set("token", refreshToken)
 	data.Set("token_type_hint", "refresh_token")
 
-	resp, err := client.PostForm("https://appleid.apple.com/auth/keys/revoke", data)
+	resp, err := client.PostForm(revokeURL, data)
 	if err != nil {
 		return err
 	}

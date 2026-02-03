@@ -122,7 +122,7 @@ func (h *UserHandler) GoogleLogin(c *gin.Context) {
 		return
 	}
 
-	result, err := h.userService.LoginWithGoogle(c, req.IDToken)
+	result, err := h.userService.LoginWithGoogle(c, req)
 	if err != nil {
 		c.Error(err)
 		return
@@ -149,7 +149,7 @@ func (h *UserHandler) KakaoLogin(c *gin.Context) {
 		return
 	}
 
-	result, err := h.userService.LoginWithKakao(c, req.AccessToken)
+	result, err := h.userService.LoginWithKakao(c, req)
 	if err != nil {
 		c.Error(err)
 		return
@@ -176,7 +176,7 @@ func (h *UserHandler) AppleLogin(c *gin.Context) {
 		return
 	}
 
-	result, err := h.userService.LoginWithApple(c, req.IdentityToken)
+	result, err := h.userService.LoginWithApple(c, req)
 	if err != nil {
 		c.Error(err)
 		return
