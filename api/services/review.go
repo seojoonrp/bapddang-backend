@@ -17,7 +17,7 @@ type ReviewService interface {
 	Update(ctx context.Context, reviewID string, userID string, input models.UpdateReviewRequest) (*models.Review, error)
 	Delete(ctx context.Context, reviewID string, userID string) error
 	GetMyReviewsByDay(ctx context.Context, userID string, day int) ([]models.Review, error)
-	GetRecentWithStandardFood(ctx context.Context, count int) ([]models.RecentReviewResponse, error)
+	GetRecentWithStandardFood(ctx context.Context, userID string, count int) ([]models.RecentReviewResponse, error)
 }
 
 type reviewService struct {
@@ -275,7 +275,7 @@ func (s *reviewService) GetMyReviewsByDay(ctx context.Context, userID string, da
 	return reviews, nil
 }
 
-func (s *reviewService) GetRecentWithStandardFood(ctx context.Context, count int) ([]models.RecentReviewResponse, error) {
+func (s *reviewService) GetRecentWithStandardFood(ctx context.Context, userID string, count int) ([]models.RecentReviewResponse, error) {
 	if count <= 0 {
 		return nil, apperr.BadRequest("count must be a positive integer", nil)
 	}
@@ -283,7 +283,12 @@ func (s *reviewService) GetRecentWithStandardFood(ctx context.Context, count int
 		count = 3
 	}
 
-	reviews, err := s.reviewRepo.FindRecentWithStandardFood(ctx, int64(count))
+	uID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return nil, apperr.InternalServerError("invalid user ID in token", err)
+	}
+
+	reviews, err := s.reviewRepo.FindRecentWithStandardFood(ctx, uID, int64(count))
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to fetch recent reviews", err)
 	}

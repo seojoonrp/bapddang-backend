@@ -172,16 +172,23 @@ func (h *ReviewHandler) GetMyReviewsByDay(c *gin.Context) {
 // @Produce json
 // @Param count query int false "가져올 리뷰 개수 (최대 3개)"
 // @Success 200 {object} response.Response{data=[]models.RecentReviewResponse} "조회 성공"
+// @Security BearerAuth
 // @Router /reviews/recent [get]
 func (h *ReviewHandler) GetRecentWithStandardFood(c *gin.Context) {
-	countStr := c.DefaultQuery("count", "3")
+	userID, err := GetUserID(c)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	countStr := c.DefaultQuery("count", "2")
 	count, err := strconv.Atoi(countStr)
 	if err != nil {
 		c.Error(apperr.BadRequest("invalid count query parameter", err))
 		return
 	}
 
-	reviews, err := h.reviewService.GetRecentWithStandardFood(c, count)
+	reviews, err := h.reviewService.GetRecentWithStandardFood(c, userID, count)
 	if err != nil {
 		c.Error(err)
 		return

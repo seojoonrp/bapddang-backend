@@ -20,7 +20,7 @@ type ReviewRepository interface {
 	FindByID(ctx context.Context, reviewID primitive.ObjectID) (*models.Review, error)
 	FindAllByUserID(ctx context.Context, userID primitive.ObjectID) ([]models.Review, error)
 	DeleteByUserID(ctx context.Context, userID primitive.ObjectID) error
-	FindRecentWithStandardFood(ctx context.Context, limit int64) ([]models.Review, error)
+	FindRecentWithStandardFood(ctx context.Context, userID primitive.ObjectID, limit int64) ([]models.Review, error)
 }
 
 type reviewRepository struct {
@@ -108,10 +108,11 @@ func (r *reviewRepository) DeleteByUserID(ctx context.Context, userID primitive.
 	return err
 }
 
-func (r *reviewRepository) FindRecentWithStandardFood(ctx context.Context, limit int64) ([]models.Review, error) {
+func (r *reviewRepository) FindRecentWithStandardFood(ctx context.Context, userID primitive.ObjectID, limit int64) ([]models.Review, error) {
 	var reviews []models.Review
 
 	filter := bson.M{
+		"user_id": bson.M{"$ne": userID},
 		"foods": bson.M{
 			"$elemMatch": bson.M{"type": models.FoodTypeStandard},
 		},
