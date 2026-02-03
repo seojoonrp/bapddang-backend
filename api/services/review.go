@@ -155,10 +155,6 @@ func (s *reviewService) Update(ctx context.Context, reviewID string, userID stri
 		return nil, apperr.InternalServerError("failed to fetch user", err)
 	}
 
-	if review.Week != user.Week {
-		return nil, apperr.BadRequest("cannot update review from previous weeks", nil)
-	}
-
 	oldRating := review.Rating
 
 	review.MealTime = req.MealTime
@@ -181,7 +177,7 @@ func (s *reviewService) Update(ctx context.Context, reviewID string, userID stri
 		}
 	}
 
-	if oldRating != review.Rating {
+	if review.Week == user.Week && oldRating != review.Rating {
 		marshmallow, err := s.marshmallowRepo.FindByUserIDAndWeek(ctx, user.ID, user.Week)
 		if err != nil {
 			return nil, apperr.InternalServerError("failed to fetch marshmallow", err)
@@ -213,6 +209,11 @@ func (s *reviewService) Delete(ctx context.Context, reviewID string, userID stri
 		return apperr.Unauthorized("you are not the owner of this review", nil)
 	}
 
+	user, err := s.userRepo.FindByID(ctx, review.UserID)
+	if err != nil {
+		return apperr.InternalServerError("failed to fetch user", err)
+	}
+
 	standardFoodIDs, customFoodIDs := s.classifyFoodItems(review.Foods)
 
 	if len(standardFoodIDs) > 0 {
@@ -225,6 +226,20 @@ func (s *reviewService) Delete(ctx context.Context, reviewID string, userID stri
 		err = s.foodRepo.UpdateCustomDeletedReviewStats(ctx, customFoodIDs)
 		if err != nil {
 			return apperr.InternalServerError("failed to update custom food review stats", err)
+		}
+	}
+
+	if review.Week == user.Week {
+		marshmallow, err := s.marshmallowRepo.FindByUserIDAndWeek(ctx, user.ID, user.Week)
+		if err != nil {
+			return apperr.InternalServerError("failed to fetch marshmallow", err)
+		}
+		if marshmallow == nil {
+			return apperr.InternalServerError("marshmallow not found for current week", nil)
+		}
+		err = s.marshmallowRepo.DeleteReviewData(ctx, marshmallow.ID, review.Rating)
+		if err != nil {
+			return apperr.InternalServerError("failed to update marshmallow status", err)
 		}
 	}
 
