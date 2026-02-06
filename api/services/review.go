@@ -146,8 +146,8 @@ func (s *reviewService) Update(ctx context.Context, reviewID string, userID stri
 	}
 
 	commentLen := len([]rune(req.Comment))
-	if commentLen > 50 || commentLen <= 0 {
-		return nil, apperr.BadRequest("comment must be between 1 and 50 characters", nil)
+	if commentLen > 50 {
+		return nil, apperr.BadRequest("comment must be less than 50 characters", nil)
 	}
 
 	user, err := s.userRepo.FindByID(ctx, review.UserID)

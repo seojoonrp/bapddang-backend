@@ -247,7 +247,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 // @Tags User
 // @Accept json
 // @Produce json
-// @Success 200 {object} response.Response{data=bool} "Week 변경 여부 (true: 변경됨)"
+// @Success 200 {object} response.Response{data=models.SyncDayResponse} "동기화 결과"
 // @Security BearerAuth
 // @Router /users/me/sync [patch]
 func (h *UserHandler) SyncUserDayAndWeek(c *gin.Context) {
@@ -257,7 +257,7 @@ func (h *UserHandler) SyncUserDayAndWeek(c *gin.Context) {
 		return
 	}
 
-	weekUpdated, err := h.userService.SyncUserDay(c, userID)
+	result, err := h.userService.SyncUserDay(c, userID)
 	if err != nil {
 		c.Error(err)
 		return
@@ -265,6 +265,6 @@ func (h *UserHandler) SyncUserDayAndWeek(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response.Response{
 		Success: true,
-		Data:    weekUpdated,
+		Data:    result,
 	})
 }

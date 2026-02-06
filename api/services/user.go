@@ -48,7 +48,7 @@ type UserService interface {
 
 	Withdraw(ctx context.Context, userID string) error
 
-	SyncUserDay(ctx context.Context, userID string) (bool, error)
+	SyncUserDay(ctx context.Context, userID string) (models.SyncDayResponse, error)
 }
 
 type userService struct {
@@ -436,18 +436,18 @@ func (s *userService) unlinkApple(refreshToken string) error {
 	return nil
 }
 
-func (s *userService) SyncUserDay(ctx context.Context, userID string) (bool, error) {
+func (s *userService) SyncUserDay(ctx context.Context, userID string) (models.SyncDayResponse, error) {
 	uID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
-		return false, apperr.InternalServerError("invalid user ID in token", err)
+		return models.SyncDayResponse{}, apperr.InternalServerError("invalid user ID in token", err)
 	}
 
 	user, err := s.userRepo.FindByID(ctx, uID)
 	if err != nil {
-		return false, apperr.InternalServerError("failed to fetch user", err)
+		return models.SyncDayResponse{}, apperr.InternalServerError("failed to fetch user", err)
 	}
 	if user == nil {
-		return false, apperr.NotFound("user not found", nil)
+		return models.SyncDayResponse{}, apperr.NotFound("user not found", nil)
 	}
 
 	seoulLoc, _ := time.LoadLocation("Asia/Seoul")
@@ -463,7 +463,7 @@ func (s *userService) SyncUserDay(ctx context.Context, userID string) (bool, err
 
 	curM, err := s.marshmallowRepo.FindByUserIDAndWeek(ctx, uID, calculatedWeek)
 	if err != nil {
-		return false, apperr.InternalServerError("failed to fetch current week's marshmallow", err)
+		return models.SyncDayResponse{}, apperr.InternalServerError("failed to fetch current week's marshmallow", err)
 	}
 	if curM == nil {
 		log.Println("No current week marshmallow found, creating new one")
@@ -473,15 +473,16 @@ func (s *userService) SyncUserDay(ctx context.Context, userID string) (bool, err
 			Week:        calculatedWeek,
 			ReviewCount: 0,
 			TotalRating: 0,
-			Status:      -2,
+			Status:      -2, // 진행중
 			IsComplete:  false,
 		}
 		err := s.marshmallowRepo.Create(ctx, newM)
 		if err != nil {
-			return false, apperr.InternalServerError("failed to create marshmallow", err)
+			return models.SyncDayResponse{}, apperr.InternalServerError("failed to create marshmallow", err)
 		}
 	}
 
+	var lastM *models.Marshmallow
 	if user.Day < calculatedDay {
 		if user.Week < calculatedWeek {
 			weekUpdated = true
@@ -500,24 +501,36 @@ func (s *userService) SyncUserDay(ctx context.Context, userID string) (bool, err
 					}
 					err := s.marshmallowRepo.Create(ctx, emptyMarshmallow)
 					if err != nil {
-						log.Printf("[WARNING] Failed to create empty marshmallow for user %s week %d: %v", user.Username, week, err)
+						log.Printf("[WARNING] Failed to create empty marshmallow: %v\n", err)
 					}
 				} else if !m.IsComplete { // 존재는 하는데 완료처리가 안된 경우
 					finalStatus := utils.GetMarshmallowStatus(m.ReviewCount, m.TotalRating)
 					err := s.marshmallowRepo.CompleteMarshmallow(ctx, m.ID, finalStatus)
 					if err != nil {
-						return false, apperr.InternalServerError("failed to complete marshmallow", err)
+						return models.SyncDayResponse{}, apperr.InternalServerError("failed to complete marshmallow", err)
 					}
 					log.Println("Successfully completed marshmallow for week", week)
 				}
+			}
+
+			lastM, err = s.marshmallowRepo.FindByUserIDAndWeek(ctx, uID, calculatedWeek-1)
+			if err != nil {
+				return models.SyncDayResponse{}, apperr.InternalServerError("failed to fetch last week's marshmallow", err)
 			}
 		}
 
 		err := s.userRepo.UpdateDayAndWeek(ctx, uID, calculatedDay, calculatedWeek)
 		if err != nil {
-			return false, apperr.InternalServerError("failed to update user day/week", err)
+			return models.SyncDayResponse{}, apperr.InternalServerError("failed to update user day/week", err)
 		}
 	}
 
-	return weekUpdated, nil
+	user.Day = calculatedDay
+	user.Week = calculatedWeek
+
+	return models.SyncDayResponse{
+		UpdatedUser:     user,
+		IsNewWeek:       weekUpdated,
+		LastMarshmallow: lastM,
+	}, nil
 }

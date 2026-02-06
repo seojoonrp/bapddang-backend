@@ -56,3 +56,9 @@ type LoginResponse struct {
 	User        *User  `json:"user"`
 	IsNewUser   bool   `json:"isNewUser"`
 }
+
+type SyncDayResponse struct {
+	UpdatedUser     *User        `json:"updatedUser"`
+	IsNewWeek       bool         `json:"isNewWeek"`
+	LastMarshmallow *Marshmallow `json:"lastMarshmallow"`
+}

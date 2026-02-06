@@ -2,13 +2,8 @@ basePath: /api/v1
 definitions:
   models.AppleLoginRequest:
     properties:
-      fullName:
-        properties:
-          familyName:
-            type: string
-          givenName:
-            type: string
-        type: object
+      authorizationCode:
+        type: string
       identityToken:
         type: string
     required:
@@ -212,6 +207,15 @@ definitions:
     - imageURL
     - name
     - speed
+    type: object
+  models.SyncDayResponse:
+    properties:
+      isNewWeek:
+        type: boolean
+      lastMarshmallow:
+        $ref: '#/definitions/models.Marshmallow'
+      updatedUser:
+        $ref: '#/definitions/models.User'
     type: object
   models.UpdateReviewRequest:
     properties:
@@ -465,49 +469,6 @@ paths:
       summary: 일반 회원가입
       tags:
       - Auth
-  /foods:
-    get:
-      consumes:
-      - application/json
-      description: 카테고리별 음식 목록을 랜덤하게 가져온다.
-      parameters:
-      - description: 속도 (fast/slow)
-        in: query
-        name: speed
-        required: true
-        type: string
-      - collectionFormat: csv
-        description: 카테고리 목록 (1개 이상)
-        in: query
-        items:
-          type: string
-        name: category
-        required: true
-        type: array
-      - description: 조회 개수 (최대 10개)
-        in: query
-        name: count
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 조회 성공
-          schema:
-            allOf:
-            - $ref: '#/definitions/response.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/models.FoodLikeResponse'
-                  type: array
-              type: object
-      security:
-      - BearerAuth: []
-      summary: 카테고리별 음식 조회
-      tags:
-      - Food
   /foods/{foodID}:
     get:
       consumes:
@@ -613,6 +574,49 @@ paths:
       summary: 음식 좋아요
       tags:
       - Like
+  /foods/category:
+    get:
+      consumes:
+      - application/json
+      description: 카테고리별 음식 목록을 랜덤하게 가져온다.
+      parameters:
+      - description: 속도 (fast/slow)
+        in: query
+        name: speed
+        required: true
+        type: string
+      - collectionFormat: csv
+        description: 카테고리 목록 (1개 이상)
+        in: query
+        items:
+          type: string
+        name: category
+        required: true
+        type: array
+      - description: 조회 개수 (최대 10개)
+        in: query
+        name: count
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 조회 성공
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.FoodLikeResponse'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 카테고리별 음식 조회
+      tags:
+      - Food
   /foods/main-feed:
     get:
       consumes:
@@ -835,10 +839,33 @@ paths:
                     $ref: '#/definitions/models.RecentReviewResponse'
                   type: array
               type: object
+      security:
+      - BearerAuth: []
       summary: 최신 리뷰 조회
       tags:
       - Review
   /users/me:
+    delete:
+      consumes:
+      - application/json
+      description: 현재 로그인한 유저의 계정을 삭제한다.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 성공 메시지
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 회원 탈퇴
+      tags:
+      - User
     get:
       consumes:
       - application/json
@@ -923,13 +950,13 @@ paths:
       - application/json
       responses:
         "200":
-          description: 'Week 변경 여부 (true: 변경됨)'
+          description: 동기화 결과
           schema:
             allOf:
             - $ref: '#/definitions/response.Response'
             - properties:
                 data:
-                  type: boolean
+                  $ref: '#/definitions/models.SyncDayResponse'
               type: object
       security:
       - BearerAuth: []

@@ -353,7 +353,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/foods": {
+        "/foods/category": {
             "get": {
                 "security": [
                     {
@@ -823,6 +823,11 @@ const docTemplate = `{
         },
         "/reviews/recent": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "표준 타입의 음식이 적어도 하나 포함된 리뷰를 가져와 음식 정보와 함께 반환한다.",
                 "consumes": [
                     "application/json"
@@ -1022,6 +1027,44 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "현재 로그인한 유저의 계정을 삭제한다.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "회원 탈퇴",
+                "responses": {
+                    "200": {
+                        "description": "성공 메시지",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
             }
         },
         "/users/me/liked-foods": {
@@ -1139,7 +1182,7 @@ const docTemplate = `{
                 "summary": "Day 동기화",
                 "responses": {
                     "200": {
-                        "description": "Week 변경 여부 (true: 변경됨)",
+                        "description": "동기화 결과",
                         "schema": {
                             "allOf": [
                                 {
@@ -1149,7 +1192,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "boolean"
+                                            "$ref": "#/definitions/models.SyncDayResponse"
                                         }
                                     }
                                 }
@@ -1167,16 +1210,8 @@ const docTemplate = `{
                 "identityToken"
             ],
             "properties": {
-                "fullName": {
-                    "type": "object",
-                    "properties": {
-                        "familyName": {
-                            "type": "string"
-                        },
-                        "givenName": {
-                            "type": "string"
-                        }
-                    }
+                "authorizationCode": {
+                    "type": "string"
                 },
                 "identityToken": {
                     "type": "string"
@@ -1480,6 +1515,20 @@ const docTemplate = `{
                 },
                 "totalRating": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.SyncDayResponse": {
+            "type": "object",
+            "properties": {
+                "isNewWeek": {
+                    "type": "boolean"
+                },
+                "lastMarshmallow": {
+                    "$ref": "#/definitions/models.Marshmallow"
+                },
+                "updatedUser": {
+                    "$ref": "#/definitions/models.User"
                 }
             }
         },
