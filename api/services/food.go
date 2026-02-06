@@ -226,15 +226,11 @@ func (s *foodService) getRecommendedFoods(ctx context.Context, userID primitive.
 			for _, parent := range sf.food.Parents {
 				usedParents[parent] = true
 			}
-
-			log.Printf("[REC_DEBUG] Selected: %s (Score: %.3f, Parents: %v)",
-				sf.food.Name, sf.score, sf.food.Parents)
 		}
 	}
 
 	// 혹시라도 부족할 시 부모 상관없이 채우기
 	if len(finalFoods) < count {
-		log.Printf("[REC_DEBUG] Result insufficient (%d/%d), adding fallback items", len(finalFoods), count)
 		for _, sf := range scoredList {
 			if len(finalFoods) >= count {
 				break
