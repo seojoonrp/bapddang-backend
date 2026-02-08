@@ -118,16 +118,19 @@ func (s *reviewService) Create(ctx context.Context, req models.CreateReviewReque
 		}
 	}
 
-	marshmallow, err := s.marshmallowRepo.FindByUserIDAndWeek(ctx, user.ID, user.Week)
-	if err != nil {
-		return nil, apperr.InternalServerError("failed to fetch marshmallow", err)
-	}
-	if marshmallow == nil {
-		return nil, apperr.InternalServerError("marshmallow not found for current week", nil)
-	}
-	err = s.marshmallowRepo.AddReviewData(ctx, marshmallow.ID, newReview.Rating)
-	if err != nil {
-		return nil, apperr.InternalServerError("failed to update marshmallow status", err)
+	reqWeek := (req.Day-1)/7 + 1
+	if reqWeek == user.Week {
+		marshmallow, err := s.marshmallowRepo.FindByUserIDAndWeek(ctx, user.ID, user.Week)
+		if err != nil {
+			return nil, apperr.InternalServerError("failed to fetch marshmallow", err)
+		}
+		if marshmallow == nil {
+			return nil, apperr.InternalServerError("marshmallow not found for current week", nil)
+		}
+		err = s.marshmallowRepo.AddReviewData(ctx, marshmallow.ID, newReview.Rating)
+		if err != nil {
+			return nil, apperr.InternalServerError("failed to update marshmallow status", err)
+		}
 	}
 
 	return &newReview, nil

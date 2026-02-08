@@ -45,6 +45,7 @@ type UserService interface {
 	LoginWithGoogle(ctx context.Context, req models.GoogleLoginRequest) (models.LoginResponse, error)
 	LoginWithKakao(ctx context.Context, req models.KakaoLoginRequest) (models.LoginResponse, error)
 	LoginWithApple(ctx context.Context, req models.AppleLoginRequest) (models.LoginResponse, error)
+	AgreeTerms(ctx context.Context, userID string) error
 
 	Withdraw(ctx context.Context, userID string) error
 
@@ -130,6 +131,8 @@ func (s *userService) SignUp(ctx context.Context, req models.SignUpRequest) erro
 		LoginMethod: models.LoginMethodLocal,
 		Day:         1,
 		Week:        1,
+		IsAgreed:    true,
+		AgreedAt:    time.Now(),
 		CreatedAt:   time.Now(),
 	}
 
@@ -182,6 +185,7 @@ func (s *userService) loginWithSocial(ctx context.Context, provider string, soci
 			LoginMethod: provider,
 			Day:         1,
 			Week:        1,
+			IsAgreed:    false,
 			CreatedAt:   time.Now(),
 		}
 		if email != "" {
@@ -281,6 +285,20 @@ func (s *userService) LoginWithApple(ctx context.Context, req models.AppleLoginR
 	}
 
 	return res, nil
+}
+
+func (s *userService) AgreeTerms(ctx context.Context, userID string) error {
+	uID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return apperr.InternalServerError("invalid user ID in token", err)
+	}
+
+	err = s.userRepo.UpdateAgreement(ctx, uID, true, time.Now())
+	if err != nil {
+		return apperr.InternalServerError("failed to update user agreement", err)
+	}
+
+	return nil
 }
 
 func (s *userService) Withdraw(ctx context.Context, userID string) error {

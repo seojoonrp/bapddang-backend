@@ -24,6 +24,8 @@ type User struct {
 	LoginMethod       string             `bson:"login_method" json:"loginMethod"`
 	Day               int                `bson:"day" json:"day"`
 	Week              int                `bson:"week" json:"week"`
+	IsAgreed          bool               `bson:"is_agreed" json:"isAgreed"`
+	AgreedAt          time.Time          `bson:"agreed_at,omitempty" json:"agreedAt,omitempty"`
 	CreatedAt         time.Time          `bson:"created_at" json:"createdAt"`
 	AppleRefreshToken string             `bson:"apple_refresh_token,omitempty" json:"-"`
 }

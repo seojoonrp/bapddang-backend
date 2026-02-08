@@ -215,6 +215,33 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 	})
 }
 
+// @Summary 약관 동의
+// @Description 현재 (소셜)로그인한 유저가 약관에 동의한다.
+// @Tags User
+// @Accept json
+// @Produce json
+// @Success 200 {object} response.Response{data=string} "성공 메시지"
+// @Security BearerAuth
+// @Router /users/me/agreement [patch]
+func (h *UserHandler) AgreeTerms(c *gin.Context) {
+	userID, err := GetUserID(c)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	err = h.userService.AgreeTerms(c, userID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Response{
+		Success: true,
+		Data:    "terms agreed successfully",
+	})
+}
+
 // @Summary 회원 탈퇴
 // @Description 현재 로그인한 유저의 계정을 삭제한다.
 // @Tags User

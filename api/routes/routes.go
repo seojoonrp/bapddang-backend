@@ -47,6 +47,7 @@ func SetupRoutes(
 		users.Use(middleware.AuthMiddleware())
 		{
 			users.GET("/me", userHandler.GetMe)
+			users.PATCH("/me/agreement", userHandler.AgreeTerms)
 			users.GET("/me/liked-foods", likeHandler.GetLikedFoods)
 			users.GET("/me/reviews", reviewHandler.GetMyReviewsByDay)
 			users.PATCH("/me/sync", userHandler.SyncUserDayAndWeek)

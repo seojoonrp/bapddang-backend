@@ -4,6 +4,7 @@ package repositories
 
 import (
 	"context"
+	"time"
 
 	"github.com/seojoonrp/bapddang-server/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -18,6 +19,7 @@ type UserRepository interface {
 	Delete(ctx context.Context, userID primitive.ObjectID) error
 	UpdateAppleRefreshToken(ctx context.Context, userID primitive.ObjectID, refreshToken string) error
 	UpdateDayAndWeek(ctx context.Context, userID primitive.ObjectID, newDay int, newWeek int) error
+	UpdateAgreement(ctx context.Context, userID primitive.ObjectID, isAgreed bool, agreedAt time.Time) error
 }
 
 type userRepository struct {
@@ -73,6 +75,14 @@ func (r *userRepository) UpdateAppleRefreshToken(ctx context.Context, userID pri
 func (r *userRepository) UpdateDayAndWeek(ctx context.Context, userID primitive.ObjectID, newDay int, newWeek int) error {
 	filter := bson.M{"_id": userID}
 	update := bson.M{"$set": bson.M{"day": newDay, "week": newWeek}}
+
+	_, err := r.collection.UpdateOne(ctx, filter, update)
+	return err
+}
+
+func (r *userRepository) UpdateAgreement(ctx context.Context, userID primitive.ObjectID, isAgreed bool, agreedAt time.Time) error {
+	filter := bson.M{"_id": userID}
+	update := bson.M{"$set": bson.M{"is_agreed": isAgreed, "agreed_at": agreedAt}}
 
 	_, err := r.collection.UpdateOne(ctx, filter, update)
 	return err
