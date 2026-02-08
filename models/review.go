@@ -31,6 +31,7 @@ type CreateReviewRequest struct {
 	ImageURL string           `json:"imageURL"`
 	Comment  string           `json:"comment"`
 	Rating   int              `json:"rating" binding:"required"`
+	Day      int              `json:"day" binding:"required"`
 }
 
 type UpdateReviewRequest struct {

@@ -75,6 +75,13 @@ func (s *reviewService) Create(ctx context.Context, req models.CreateReviewReque
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to fetch user", err)
 	}
+	if user == nil {
+		return nil, apperr.InternalServerError("user not found", nil)
+	}
+
+	if req.Day > user.Day || req.Day < user.Day-2 {
+		return nil, apperr.BadRequest("day must be within the last 2 days and not in the future", nil)
+	}
 
 	newReview := models.Review{
 		ID:        primitive.NewObjectID(),
@@ -85,7 +92,7 @@ func (s *reviewService) Create(ctx context.Context, req models.CreateReviewReque
 		ImageURL:  req.ImageURL,
 		Comment:   req.Comment,
 		Rating:    req.Rating,
-		Day:       user.Day,
+		Day:       req.Day,
 		Week:      user.Week,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
