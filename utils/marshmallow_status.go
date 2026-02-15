@@ -11,28 +11,28 @@ func GetMarshmallowStatus(reviewCount int, totalRating int) int {
 
 	switch {
 	// [3] 개 노릇노릇한 마시멜로
-	// 1. 10끼 이상 & 평균 3.2 이상
-	// 2. 7끼 이상 & 평균 4.0 이상
-	case (reviewCount >= 10 && avg >= 3.2), (reviewCount >= 7 && avg >= 4.0):
+	// 1. 10끼 이상 & 평균 4.3 이상
+	// 2. 7끼 이상 & 평균 4.5 이상
+	case (reviewCount >= 10 && avg >= 4.3), (reviewCount >= 7 && avg >= 4.5):
 		return 3
 
 	// [2] 나쁘지 않은 마시멜로
-	// 1. 10끼 이상 & 평균 2.5 이상
-	// 1. 7끼 이상 & 평균 3.2 이상
-	// 2. 5끼 이상 & 평균 4.0 이상
-	case (reviewCount >= 10 && avg >= 2.5), (reviewCount >= 7 && avg >= 3.2), (reviewCount >= 5 && avg >= 4.0):
+	// 1. 10끼 이상 & 평균 3.5 이상
+	// 1. 7끼 이상 & 평균 3.7 이상
+	// 2. 5끼 이상 & 평균 3.9 이상
+	case (reviewCount >= 10 && avg >= 3.5), (reviewCount >= 7 && avg >= 3.7), (reviewCount >= 5 && avg >= 3.9):
 		return 2
 
-	// [1] 흰색 마시멜로
-	// 1. 7끼 이상 (평균 상관X)
-	// 2. 5끼 이상 & 평균 2.5 이상
-	// 2. 3끼 이상 & 평균 4.0 이상
-	case (reviewCount >= 7), (reviewCount >= 5 && avg >= 2.5), (reviewCount >= 3 && avg >= 4.0):
-		return 1
-
 	// [0] 시커멓게 탄 마시멜로
-	// - 위 조건에 해당하지 않는 모든 경우 (기록이 1~2개인데 별점도 낮거나, 많이 먹었는데 별점이 엉망인 경우)
-	default:
+	// 1. 10끼 이상 & 평균 3.5 미만
+	// 2. 7끼 이상 & 평균 3.7 미만
+	// 2. 5끼 이상 & 평균 3.3 미만
+	case (reviewCount >= 10 && avg < 3.5), (reviewCount >= 7 && avg < 3.7), (reviewCount >= 5 && avg < 3.3):
 		return 0
+
+	// [1]
+	// - 위 조건에 해당하지 않는 모든 경우
+	default:
+		return 1
 	}
 }
