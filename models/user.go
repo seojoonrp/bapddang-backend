@@ -64,3 +64,13 @@ type SyncDayResponse struct {
 	IsNewWeek       bool         `json:"isNewWeek"`
 	LastMarshmallow *Marshmallow `json:"lastMarshmallow"`
 }
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword" binding:"required"`
+	NewPassword     string `json:"newPassword" binding:"required"`
+}
+
+type ChangePasswordResponse struct {
+	IsCurrentPasswordValid bool `json:"isCurrentPasswordValid"`
+	Success                bool `json:"success"`
+}

@@ -295,3 +295,37 @@ func (h *UserHandler) SyncUserDayAndWeek(c *gin.Context) {
 		Data:    result,
 	})
 }
+
+// @Summary 비밀번호 변경
+// @Description 현재 (로컬로)로그인한 유저가 비밀번호를 변경한다.
+// @Tags User
+// @Accept json
+// @Produce json
+// @Param request body models.ChangePasswordRequest true "현재 비밀번호와 새 비밀번호"
+// @Success 200 {object} response.Response{data=models.ChangePasswordResponse} "비밀번호 변경 결과"
+// @Security BearerAuth
+// @Router /users/me/password [patch]
+func (h *UserHandler) ChangePassword(c *gin.Context) {
+	userID, err := GetUserID(c)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	var req models.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(apperr.BadRequest("invalid request body", err))
+		return
+	}
+
+	result, err := h.userService.ChangePassword(c, userID, req)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Response{
+		Success: true,
+		Data:    result,
+	})
+}

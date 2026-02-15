@@ -9,10 +9,29 @@ definitions:
     required:
     - identityToken
     type: object
+  models.ChangePasswordRequest:
+    properties:
+      currentPassword:
+        type: string
+      newPassword:
+        type: string
+    required:
+    - currentPassword
+    - newPassword
+    type: object
+  models.ChangePasswordResponse:
+    properties:
+      isCurrentPasswordValid:
+        type: boolean
+      success:
+        type: boolean
+    type: object
   models.CreateReviewRequest:
     properties:
       comment:
         type: string
+      day:
+        type: integer
       foods:
         items:
           $ref: '#/definitions/models.ReviewFoodItem'
@@ -26,6 +45,7 @@ definitions:
       rating:
         type: integer
     required:
+    - day
     - foods
     - mealTime
     - name
@@ -233,6 +253,8 @@ definitions:
     type: object
   models.User:
     properties:
+      agreedAt:
+        type: string
       createdAt:
         type: string
       day:
@@ -241,6 +263,8 @@ definitions:
         type: string
       id:
         type: string
+      isAgreed:
+        type: boolean
       loginMethod:
         type: string
       username:
@@ -887,6 +911,28 @@ paths:
       summary: 내 정보 조회
       tags:
       - User
+  /users/me/agreement:
+    patch:
+      consumes:
+      - application/json
+      description: 현재 (소셜)로그인한 유저가 약관에 동의한다.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 성공 메시지
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 약관 동의
+      tags:
+      - User
   /users/me/liked-foods:
     get:
       consumes:
@@ -909,6 +955,35 @@ paths:
       security:
       - BearerAuth: []
       summary: 좋아요한 음식 목록 조회
+      tags:
+      - User
+  /users/me/password:
+    patch:
+      consumes:
+      - application/json
+      description: 현재 (로컬로)로그인한 유저가 비밀번호를 변경한다.
+      parameters:
+      - description: 현재 비밀번호와 새 비밀번호
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 비밀번호 변경 결과
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ChangePasswordResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 비밀번호 변경
       tags:
       - User
   /users/me/reviews:

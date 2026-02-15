@@ -1067,6 +1067,46 @@ const docTemplate = `{
                 }
             }
         },
+        "/users/me/agreement": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "현재 (소셜)로그인한 유저가 약관에 동의한다.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "약관 동의",
+                "responses": {
+                    "200": {
+                        "description": "성공 메시지",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/users/me/liked-foods": {
             "get": {
                 "security": [
@@ -1101,6 +1141,57 @@ const docTemplate = `{
                                             "items": {
                                                 "$ref": "#/definitions/models.StandardFood"
                                             }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/users/me/password": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "현재 (로컬로)로그인한 유저가 비밀번호를 변경한다.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "비밀번호 변경",
+                "parameters": [
+                    {
+                        "description": "현재 비밀번호와 새 비밀번호",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "비밀번호 변경 결과",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.ChangePasswordResponse"
                                         }
                                     }
                                 }
@@ -1218,9 +1309,36 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ChangePasswordRequest": {
+            "type": "object",
+            "required": [
+                "currentPassword",
+                "newPassword"
+            ],
+            "properties": {
+                "currentPassword": {
+                    "type": "string"
+                },
+                "newPassword": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ChangePasswordResponse": {
+            "type": "object",
+            "properties": {
+                "isCurrentPasswordValid": {
+                    "type": "boolean"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "models.CreateReviewRequest": {
             "type": "object",
             "required": [
+                "day",
                 "foods",
                 "mealTime",
                 "name",
@@ -1229,6 +1347,9 @@ const docTemplate = `{
             "properties": {
                 "comment": {
                     "type": "string"
+                },
+                "day": {
+                    "type": "integer"
                 },
                 "foods": {
                     "type": "array",
@@ -1556,6 +1677,9 @@ const docTemplate = `{
         "models.User": {
             "type": "object",
             "properties": {
+                "agreedAt": {
+                    "type": "string"
+                },
                 "createdAt": {
                     "type": "string"
                 },
@@ -1567,6 +1691,9 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "isAgreed": {
+                    "type": "boolean"
                 },
                 "loginMethod": {
                     "type": "string"

@@ -20,6 +20,7 @@ type UserRepository interface {
 	UpdateAppleRefreshToken(ctx context.Context, userID primitive.ObjectID, refreshToken string) error
 	UpdateDayAndWeek(ctx context.Context, userID primitive.ObjectID, newDay int, newWeek int) error
 	UpdateAgreement(ctx context.Context, userID primitive.ObjectID, isAgreed bool, agreedAt time.Time) error
+	UpdatePassword(ctx context.Context, userID primitive.ObjectID, newPassword string) error
 }
 
 type userRepository struct {
@@ -83,6 +84,14 @@ func (r *userRepository) UpdateDayAndWeek(ctx context.Context, userID primitive.
 func (r *userRepository) UpdateAgreement(ctx context.Context, userID primitive.ObjectID, isAgreed bool, agreedAt time.Time) error {
 	filter := bson.M{"_id": userID}
 	update := bson.M{"$set": bson.M{"is_agreed": isAgreed, "agreed_at": agreedAt}}
+
+	_, err := r.collection.UpdateOne(ctx, filter, update)
+	return err
+}
+
+func (r *userRepository) UpdatePassword(ctx context.Context, userID primitive.ObjectID, newPassword string) error {
+	filter := bson.M{"_id": userID}
+	update := bson.M{"$set": bson.M{"password": newPassword}}
 
 	_, err := r.collection.UpdateOne(ctx, filter, update)
 	return err

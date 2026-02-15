@@ -48,6 +48,7 @@ func SetupRoutes(
 		{
 			users.GET("/me", userHandler.GetMe)
 			users.PATCH("/me/agreement", userHandler.AgreeTerms)
+			users.PATCH("/me/password", userHandler.ChangePassword)
 			users.GET("/me/liked-foods", likeHandler.GetLikedFoods)
 			users.GET("/me/reviews", reviewHandler.GetMyReviewsByDay)
 			users.PATCH("/me/sync", userHandler.SyncUserDayAndWeek)

@@ -41,6 +41,7 @@ type UserService interface {
 	GetUserByID(ctx context.Context, userID string) (*models.User, error)
 	SignUp(ctx context.Context, req models.SignUpRequest) error
 	Login(ctx context.Context, req models.LoginRequest) (models.LoginResponse, error)
+	ChangePassword(ctx context.Context, userID string, req models.ChangePasswordRequest) (models.ChangePasswordResponse, error)
 
 	LoginWithGoogle(ctx context.Context, req models.GoogleLoginRequest) (models.LoginResponse, error)
 	LoginWithKakao(ctx context.Context, req models.KakaoLoginRequest) (models.LoginResponse, error)
@@ -165,6 +166,39 @@ func (s *userService) Login(ctx context.Context, req models.LoginRequest) (model
 		User:        user,
 		IsNewUser:   false,
 	}, nil
+}
+
+func (s *userService) ChangePassword(ctx context.Context, userID string, req models.ChangePasswordRequest) (models.ChangePasswordResponse, error) {
+	uID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return models.ChangePasswordResponse{}, apperr.InternalServerError("invalid user ID in token", err)
+	}
+
+	user, err := s.userRepo.FindByID(ctx, uID)
+	if err != nil || user == nil {
+		return models.ChangePasswordResponse{}, apperr.NotFound("user not found", nil)
+	}
+
+	if user.LoginMethod != models.LoginMethodLocal {
+		return models.ChangePasswordResponse{}, apperr.BadRequest("password change is only available for local accounts", nil)
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.CurrentPassword))
+	if err != nil {
+		return models.ChangePasswordResponse{IsCurrentPasswordValid: false, Success: false}, nil
+	}
+
+	hashedNewPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return models.ChangePasswordResponse{}, apperr.InternalServerError("failed to hash new password", err)
+	}
+
+	err = s.userRepo.UpdatePassword(ctx, uID, string(hashedNewPassword))
+	if err != nil {
+		return models.ChangePasswordResponse{}, apperr.InternalServerError("failed to update password", err)
+	}
+
+	return models.ChangePasswordResponse{IsCurrentPasswordValid: true, Success: true}, nil
 }
 
 func (s *userService) loginWithSocial(ctx context.Context, provider string, socialID string, email string) (models.LoginResponse, error) {
