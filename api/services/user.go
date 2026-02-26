@@ -349,7 +349,7 @@ func (s *userService) Withdraw(ctx context.Context, userID string) error {
 		return apperr.NotFound("user not found", nil)
 	}
 
-	likedFoodIDs, err := s.likeRepo.FindFoodIDsByUserID(ctx, uID)
+	likes, err := s.likeRepo.FindLikesByUserID(ctx, uID)
 	if err != nil {
 		return apperr.InternalServerError("failed to fetch liked foods", err)
 	}
@@ -359,8 +359,8 @@ func (s *userService) Withdraw(ctx context.Context, userID string) error {
 		return apperr.InternalServerError("failed to fetch user reviews", err)
 	}
 
-	for _, fID := range likedFoodIDs {
-		err := s.foodRepo.DecrementLikeCount(ctx, fID)
+	for _, like := range likes {
+		err := s.foodRepo.DecrementLikeCount(ctx, like.FoodID)
 		if err != nil {
 			log.Println("[WARNING] Failed to decrement like count while withdrawing user:", err)
 			continue

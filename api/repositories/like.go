@@ -16,7 +16,7 @@ type LikeRepository interface {
 	Create(ctx context.Context, like *models.Like) error
 	Delete(ctx context.Context, userID, foodID primitive.ObjectID) (int64, error)
 	CheckLikedStatus(ctx context.Context, userID primitive.ObjectID, foodIDs []primitive.ObjectID) (map[primitive.ObjectID]bool, error)
-	FindFoodIDsByUserID(ctx context.Context, userID primitive.ObjectID) ([]primitive.ObjectID, error)
+	FindLikesByUserID(ctx context.Context, userID primitive.ObjectID) ([]models.Like, error)
 	DeleteByUserID(ctx context.Context, userID primitive.ObjectID) error
 }
 
@@ -74,23 +74,23 @@ func (r *likeRepository) CheckLikedStatus(ctx context.Context, userID primitive.
 	return likedMap, nil
 }
 
-func (r *likeRepository) FindFoodIDsByUserID(ctx context.Context, userID primitive.ObjectID) ([]primitive.ObjectID, error) {
+func (r *likeRepository) FindLikesByUserID(ctx context.Context, userID primitive.ObjectID) ([]models.Like, error) {
 	cursor, err := r.collection.Find(ctx, bson.M{"user_id": userID})
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
 
-	var foodIDs []primitive.ObjectID
+	var likes []models.Like
 	for cursor.Next(ctx) {
 		var like models.Like
 		if err := cursor.Decode(&like); err != nil {
 			continue
 		}
-		foodIDs = append(foodIDs, like.FoodID)
+		likes = append(likes, like)
 	}
 
-	return foodIDs, nil
+	return likes, nil
 }
 
 func (r *likeRepository) DeleteByUserID(ctx context.Context, userID primitive.ObjectID) error {

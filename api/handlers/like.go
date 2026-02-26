@@ -89,7 +89,7 @@ func (h *LikeHandler) UnlikeFood(c *gin.Context) {
 // @Tags User
 // @Accept json
 // @Produce json
-// @Success 200 {object} response.Response{data=[]models.StandardFood} "좋아요 음식 목록"
+// @Success 200 {object} response.Response{data=[]models.LikedFoodResponse} "좋아요 음식 목록"
 // @Security BearerAuth
 // @Router /users/me/liked-foods [get]
 func (h *LikeHandler) GetLikedFoods(c *gin.Context) {
@@ -99,7 +99,7 @@ func (h *LikeHandler) GetLikedFoods(c *gin.Context) {
 		return
 	}
 
-	foods, err := h.likeService.GetLikedFoods(c.Request.Context(), userID)
+	result, err := h.likeService.GetLikedFoods(c.Request.Context(), userID)
 	if err != nil {
 		c.Error(err)
 		return
@@ -107,6 +107,6 @@ func (h *LikeHandler) GetLikedFoods(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response.Response{
 		Success: true,
-		Data:    foods,
+		Data:    result,
 	})
 }

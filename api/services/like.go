@@ -16,7 +16,7 @@ import (
 type LikeService interface {
 	LikeFood(ctx context.Context, userID, foodID string) error
 	UnlikeFood(ctx context.Context, userID, foodID string) error
-	GetLikedFoods(ctx context.Context, userID string) ([]*models.StandardFood, error)
+	GetLikedFoods(ctx context.Context, userID string) ([]*models.LikedFoodResponse, error)
 }
 
 type likeService struct {
@@ -89,19 +89,24 @@ func (s *likeService) UnlikeFood(ctx context.Context, userID, foodID string) err
 	return nil
 }
 
-func (s *likeService) GetLikedFoods(ctx context.Context, userID string) ([]*models.StandardFood, error) {
+func (s *likeService) GetLikedFoods(ctx context.Context, userID string) ([]*models.LikedFoodResponse, error) {
 	uID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
 		return nil, apperr.InternalServerError("invalid user ID in token", err)
 	}
 
-	foodIDs, err := s.likeRepo.FindFoodIDsByUserID(ctx, uID)
+	likes, err := s.likeRepo.FindLikesByUserID(ctx, uID)
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to fetch liked food IDs", err)
 	}
 
-	if len(foodIDs) == 0 {
-		return []*models.StandardFood{}, nil
+	if len(likes) == 0 {
+		return []*models.LikedFoodResponse{}, nil
+	}
+
+	foodIDs := make([]primitive.ObjectID, 0, len(likes))
+	for _, like := range likes {
+		foodIDs = append(foodIDs, like.FoodID)
 	}
 
 	foods, err := s.foodRepo.FindStandardByIDs(ctx, foodIDs)
@@ -109,5 +114,20 @@ func (s *likeService) GetLikedFoods(ctx context.Context, userID string) ([]*mode
 		return nil, apperr.InternalServerError("failed to fetch liked foods", err)
 	}
 
-	return foods, nil
+	foodMap := make(map[primitive.ObjectID]models.StandardFood)
+	for _, food := range foods {
+		foodMap[food.ID] = *food
+	}
+
+	likedFoods := make([]*models.LikedFoodResponse, 0, len(likes))
+	for _, like := range likes {
+		if food, exists := foodMap[like.FoodID]; exists {
+			likedFoods = append(likedFoods, &models.LikedFoodResponse{
+				Food:    food,
+				LikedAt: like.CreatedAt,
+			})
+		}
+	}
+
+	return likedFoods, nil
 }

@@ -14,3 +14,8 @@ type Like struct {
 	FoodID    primitive.ObjectID `bson:"food_id"`
 	CreatedAt time.Time          `bson:"created_at"`
 }
+
+type LikedFoodResponse struct {
+	Food    StandardFood `json:"food"`
+	LikedAt time.Time    `json:"liked_at"`
+}
