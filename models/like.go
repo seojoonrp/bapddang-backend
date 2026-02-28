@@ -17,5 +17,5 @@ type Like struct {
 
 type LikedFoodResponse struct {
 	Food    StandardFood `json:"food"`
-	LikedAt time.Time    `json:"liked_at"`
+	LikedAt time.Time    `json:"likedAt"`
 }
