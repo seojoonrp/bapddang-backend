@@ -88,9 +88,9 @@ func SetupRoutes(
 			marshmallows.GET("", marshmallowHandler.GetUserMarshmallows)
 		}
 
-		adminRoutes := apiV1.Group("/admin") // no protection for now
-		{
-			adminRoutes.POST("/standard-foods", foodHandler.CreateStandardFoods)
-		}
+		// adminRoutes := apiV1.Group("/admin") // no protection for now
+		// {
+		// 	adminRoutes.POST("/standard-foods", foodHandler.CreateStandardFoods)
+		// }
 	}
 }
