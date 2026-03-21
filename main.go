@@ -28,6 +28,10 @@ import (
 func main() {
 	config.LoadConfig()
 
+	if config.AppConfig.AppEnv == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
 	client, err := database.ConnectDB()
 	if err != nil {
 		log.Fatal("Failed to connect to DB: ", err)
@@ -61,8 +65,16 @@ func main() {
 	likeHandler := handlers.NewLikeHandler(likeService)
 	marshmallowHandler := handlers.NewMarshmallowHandler(marshmallowService)
 
-	router := gin.Default()
-	router.Use(cors.Default())
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"https://api.bapddang.com"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Authorization", "Content-Type", "Accept"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 	router.Use(middleware.ErrorHandler())
 	router.SetTrustedProxies(nil)
 

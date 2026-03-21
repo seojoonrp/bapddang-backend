@@ -12,6 +12,8 @@ import (
 )
 
 type Config struct {
+	AppEnv string
+
 	Port string
 
 	MongoURI string
@@ -36,6 +38,8 @@ func LoadConfig() {
 	}
 
 	AppConfig = &Config{
+		AppEnv: getEnv("APP_ENV", "development"),
+
 		Port: getEnv("PORT", "8080"),
 
 		MongoURI: getEnv("MONGO_URI", "mongodb://localhost:27017"),
