@@ -68,7 +68,7 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://api.bapddang.com"},
+		AllowOrigins:     []string{"https://api.bapddang.com", "https://bapddang.com"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Authorization", "Content-Type", "Accept"},
 		ExposeHeaders:    []string{"Content-Length"},
