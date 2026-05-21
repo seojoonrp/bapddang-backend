@@ -4,7 +4,7 @@ package utils
 
 func GetMarshmallowStatus(reviewCount int, totalRating int) int {
 	if reviewCount <= 0 {
-		return -1
+		return 1 // 리뷰가 없는 경우 흰색
 	}
 
 	avg := float64(totalRating) / float64(reviewCount)
