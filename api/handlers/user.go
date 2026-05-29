@@ -91,7 +91,7 @@ func (h *UserHandler) SignUp(c *gin.Context) {
 func (h *UserHandler) Login(c *gin.Context) {
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		c.Error(apperr.BadRequest("invalid request body", err))
 		return
 	}
 
