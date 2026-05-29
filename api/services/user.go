@@ -266,12 +266,13 @@ func (s *userService) LoginWithKakao(ctx context.Context, req models.KakaoLoginR
 	if err != nil {
 		return models.LoginResponse{}, apperr.ServiceUnavailable("kakao api server unreachable", err)
 	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode == http.StatusUnauthorized {
 		return models.LoginResponse{}, apperr.Unauthorized("expired or invalid kakao token", nil)
 	} else if resp.StatusCode != http.StatusOK {
 		return models.LoginResponse{}, apperr.InternalServerError("kakao api returned error status", fmt.Errorf("status: %d", resp.StatusCode))
 	}
-	defer resp.Body.Close()
 
 	var kakaoRes struct {
 		ID           int64 `json:"id"`

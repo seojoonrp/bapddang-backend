@@ -35,7 +35,7 @@ type CreateStandardFoodRequest struct {
 }
 
 type CustomFood struct {
-	ID          primitive.ObjectID `bson:"_id, omitempty" json:"id"`
+	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Name        string             `bson:"name" json:"name" binding:"required"`
 	ReviewCount int                `bson:"review_count" json:"reviewCount"`
 	CreatedAt   time.Time          `bson:"created_at" json:"createdAt"`

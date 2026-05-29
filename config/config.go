@@ -45,7 +45,7 @@ func LoadConfig() {
 		MongoURI: getEnv("MONGO_URI", "mongodb://localhost:27017"),
 		DBName:   getEnv("DB_NAME", "bapddang-dev"),
 
-		JWTSecret: getEnv("JWT_SECRET_KEY", "default_secret"),
+		JWTSecret: getEnv("JWT_KEY", "default_secret"),
 
 		GoogleWebClientID: getEnv("GOOGLE_WEB_CLIENT_ID", ""),
 		KakaoAdminKey:     getEnv("KAKAO_ADMIN_KEY", ""),
@@ -53,6 +53,10 @@ func LoadConfig() {
 		AppleP8Key:        getEnv("APPLE_P8_KEY", ""),
 		AppleTeamID:       getEnv("APPLE_TEAM_ID", ""),
 		AppleKeyID:        getEnv("APPLE_KEY_ID", ""),
+	}
+
+	if AppConfig.AppEnv == "production" && AppConfig.JWTSecret == "default_secret" {
+		log.Fatal("JWT_KEY must be set in production")
 	}
 }
 

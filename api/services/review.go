@@ -146,6 +146,9 @@ func (s *reviewService) Update(ctx context.Context, reviewID string, userID stri
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to fetch review", err)
 	}
+	if review == nil {
+		return nil, apperr.NotFound("review not found", nil)
+	}
 
 	if review.UserID.Hex() != userID {
 		return nil, apperr.Unauthorized("you are not the owner of this review", nil)
@@ -213,6 +216,9 @@ func (s *reviewService) Delete(ctx context.Context, reviewID string, userID stri
 	review, err := s.reviewRepo.FindByID(ctx, rID)
 	if err != nil {
 		return apperr.InternalServerError("failed to fetch review", err)
+	}
+	if review == nil {
+		return apperr.NotFound("review not found", nil)
 	}
 
 	if review.UserID.Hex() != userID {

@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/seojoonrp/bapddang-server/api/handlers"
 	"github.com/seojoonrp/bapddang-server/api/middleware"
+	"github.com/seojoonrp/bapddang-server/config"
 	_ "github.com/seojoonrp/bapddang-server/docs"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -23,7 +24,9 @@ func SetupRoutes(
 	likeHandler *handlers.LikeHandler,
 	marshmallowHandler *handlers.MarshmallowHandler,
 ) {
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	if config.AppConfig.AppEnv != "production" {
+		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 
 	apiV1 := router.Group("/api/v1")
 	{

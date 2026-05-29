@@ -10,7 +10,7 @@ import (
 
 // Image URL, Comment는 없으면 그냥 빈 문자열
 type Review struct {
-	ID        primitive.ObjectID `bson:"_id, omitempty" json:"id"`
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	UserID    primitive.ObjectID `bson:"user_id" json:"userID"`
 	Name      string             `bson:"name" json:"name"`
 	Foods     []ReviewFoodItem   `bson:"foods" json:"foods"`
