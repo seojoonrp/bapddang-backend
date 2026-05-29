@@ -23,6 +23,8 @@ import (
 	"google.golang.org/api/idtoken"
 )
 
+var externalHTTPClient = &http.Client{Timeout: 5 * time.Second}
+
 type AppleKey struct {
 	Kty string `json:"kty"`
 	Kid string `json:"kid"`
@@ -258,11 +260,10 @@ func (s *userService) LoginWithGoogle(ctx context.Context, req models.GoogleLogi
 }
 
 func (s *userService) LoginWithKakao(ctx context.Context, req models.KakaoLoginRequest) (models.LoginResponse, error) {
-	client := &http.Client{}
 	httpReq, _ := http.NewRequest("GET", "https://kapi.kakao.com/v2/user/me", nil)
 	httpReq.Header.Set("Authorization", "Bearer "+req.AccessToken)
 
-	resp, err := client.Do(httpReq)
+	resp, err := externalHTTPClient.Do(httpReq)
 	if err != nil {
 		return models.LoginResponse{}, apperr.ServiceUnavailable("kakao api server unreachable", err)
 	}
@@ -437,7 +438,6 @@ func (s *userService) handleSocialUnlink(user *models.User) error {
 }
 
 func (s *userService) unlinkKakao(socialID string) error {
-	client := &http.Client{}
 	data := url.Values{}
 	data.Set("target_id_type", "user_id")
 	data.Set("target_id", socialID)
@@ -446,7 +446,7 @@ func (s *userService) unlinkKakao(socialID string) error {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Authorization", "KakaoAK "+config.AppConfig.KakaoAdminKey)
 
-	resp, err := client.Do(req)
+	resp, err := externalHTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -470,14 +470,13 @@ func (s *userService) unlinkApple(refreshToken string) error {
 
 	revokeURL := "https://appleid.apple.com/auth/revoke"
 
-	client := &http.Client{}
 	data := url.Values{}
 	data.Set("client_id", config.AppConfig.AppleBundleID)
 	data.Set("client_secret", clientSecret)
 	data.Set("token", refreshToken)
 	data.Set("token_type_hint", "refresh_token")
 
-	resp, err := client.PostForm(revokeURL, data)
+	resp, err := externalHTTPClient.PostForm(revokeURL, data)
 	if err != nil {
 		return err
 	}

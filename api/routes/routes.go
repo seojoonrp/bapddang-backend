@@ -4,6 +4,7 @@ package routes
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/seojoonrp/bapddang-server/api/handlers"
@@ -13,6 +14,7 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.mongodb.org/mongo-driver/mongo"
+	"golang.org/x/time/rate"
 )
 
 func SetupRoutes(
@@ -36,7 +38,8 @@ func SetupRoutes(
 			})
 		})
 
-		authRoutes := apiV1.Group("/auth")
+		// IP당 1 req/s, burst 20
+		authRoutes := apiV1.Group("/auth", middleware.RateLimitByIP(rate.Every(time.Second), 20))
 		{
 			authRoutes.GET("/check-username", userHandler.CheckUsernameExists)
 			authRoutes.POST("/signup", userHandler.SignUp)

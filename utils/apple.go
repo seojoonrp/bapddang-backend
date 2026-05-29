@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/MicahParks/keyfunc/v3"
@@ -17,9 +18,23 @@ import (
 	"github.com/seojoonrp/bapddang-server/config"
 )
 
+var (
+	appleKeyfuncOnce sync.Once
+	appleKeyfunc     keyfunc.Keyfunc
+	appleKeyfuncErr  error
+
+	appleHTTPClient = &http.Client{Timeout: 5 * time.Second}
+)
+
+func getAppleKeyfunc() (keyfunc.Keyfunc, error) {
+	appleKeyfuncOnce.Do(func() {
+		appleKeyfunc, appleKeyfuncErr = keyfunc.NewDefault([]string{"https://appleid.apple.com/auth/keys"})
+	})
+	return appleKeyfunc, appleKeyfuncErr
+}
+
 func VerifyAppleToken(identityToken string, clientID string) (jwt.MapClaims, error) {
-	appleJWKSURL := "https://appleid.apple.com/auth/keys"
-	k, err := keyfunc.NewDefault([]string{appleJWKSURL})
+	k, err := getAppleKeyfunc()
 	if err != nil {
 		return nil, apperr.InternalServerError("failed to create keyfunc", err)
 	}
@@ -81,7 +96,7 @@ func GetAppleRefreshToken(code string) (string, error) {
 	data.Set("code", code)
 	data.Set("grant_type", "authorization_code")
 
-	resp, err := http.PostForm("https://appleid.apple.com/auth/token", data)
+	resp, err := appleHTTPClient.PostForm("https://appleid.apple.com/auth/token", data)
 	if err != nil {
 		return "", err
 	}
