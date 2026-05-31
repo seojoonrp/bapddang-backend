@@ -303,27 +303,42 @@ func (s *reviewService) GetRecentWithStandardFood(ctx context.Context, userID st
 		return nil, apperr.InternalServerError("failed to fetch recent reviews", err)
 	}
 
-	result := make([]models.RecentReviewResponse, 0, len(reviews))
-	for _, r := range reviews {
-		var firstStandardFood models.StandardFood
-
+	firstFoodIDs := make([]primitive.ObjectID, len(reviews))
+	hasFood := make([]bool, len(reviews))
+	foodIDs := make([]primitive.ObjectID, 0, len(reviews))
+	for i, r := range reviews {
 		for _, f := range r.Foods {
 			if f.Type == models.FoodTypeStandard {
 				fID, err := primitive.ObjectIDFromHex(f.FoodID)
 				if err != nil {
 					return nil, apperr.InternalServerError("invalid food ID in review", err)
 				}
-				food, err := s.foodRepo.FindStandardByID(ctx, fID)
-				if err != nil {
-					return nil, apperr.InternalServerError("failed to fetch food details", err)
-				}
-				if food == nil {
-					return nil, apperr.InternalServerError("food not found for ID in review", nil)
-				}
-
-				firstStandardFood = *food
+				firstFoodIDs[i] = fID
+				hasFood[i] = true
+				foodIDs = append(foodIDs, fID)
 				break
 			}
+		}
+	}
+
+	foods, err := s.foodRepo.FindStandardByIDs(ctx, foodIDs)
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to fetch food details", err)
+	}
+	foodMap := make(map[primitive.ObjectID]models.StandardFood, len(foods))
+	for _, food := range foods {
+		foodMap[food.ID] = *food
+	}
+
+	result := make([]models.RecentReviewResponse, 0, len(reviews))
+	for i, r := range reviews {
+		var firstStandardFood models.StandardFood
+		if hasFood[i] {
+			food, ok := foodMap[firstFoodIDs[i]]
+			if !ok {
+				return nil, apperr.InternalServerError("food not found for ID in review", nil)
+			}
+			firstStandardFood = food
 		}
 
 		result = append(result, models.RecentReviewResponse{

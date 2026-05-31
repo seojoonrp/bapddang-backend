@@ -361,11 +361,13 @@ func (s *userService) Withdraw(ctx context.Context, userID string) error {
 		return apperr.InternalServerError("failed to fetch user reviews", err)
 	}
 
+	likedFoodIDs := make([]primitive.ObjectID, 0, len(likes))
 	for _, like := range likes {
-		err := s.foodRepo.DecrementLikeCount(ctx, like.FoodID)
-		if err != nil {
-			log.Println("[WARNING] Failed to decrement like count while withdrawing user:", err)
-			continue
+		likedFoodIDs = append(likedFoodIDs, like.FoodID)
+	}
+	if len(likedFoodIDs) > 0 {
+		if err := s.foodRepo.DecrementLikeCounts(ctx, likedFoodIDs); err != nil {
+			log.Println("[WARNING] Failed to decrement like counts while withdrawing user:", err)
 		}
 	}
 

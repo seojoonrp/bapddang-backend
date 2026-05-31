@@ -93,26 +93,42 @@ func (s *foodService) CreateStandards(ctx context.Context, req []models.CreateSt
 	return newFoods, nil
 }
 
-func (s *foodService) findOrCreateCustom(ctx context.Context, name string) (*models.CustomFood, error) {
-	existingFood, err := s.foodRepo.FindCustomByName(ctx, name)
-	if err != nil {
-		return nil, apperr.InternalServerError("failed to fetch custom food", err)
+func (s *foodService) resolveCustomFoods(ctx context.Context, names []string) (map[string]models.CustomFood, error) {
+	result := make(map[string]models.CustomFood, len(names))
+	if len(names) == 0 {
+		return result, nil
 	}
-	if existingFood == nil {
+
+	existing, err := s.foodRepo.FindCustomByNames(ctx, names)
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to fetch custom foods", err)
+	}
+	for _, f := range existing {
+		result[f.Name] = *f
+	}
+
+	var docs []interface{}
+	for _, name := range names {
+		if _, ok := result[name]; ok {
+			continue
+		}
 		newFood := models.CustomFood{
 			ID:          primitive.NewObjectID(),
 			Name:        name,
 			ReviewCount: 0,
 			CreatedAt:   time.Now(),
 		}
-		err := s.foodRepo.CreateCustom(ctx, newFood)
-		if err != nil {
-			return nil, apperr.InternalServerError("failed to create custom food", err)
-		}
-		return &newFood, nil
+		docs = append(docs, newFood)
+		result[name] = newFood
 	}
 
-	return existingFood, nil
+	if len(docs) > 0 {
+		if err := s.foodRepo.CreateCustoms(ctx, docs); err != nil {
+			return nil, apperr.InternalServerError("failed to create custom foods", err)
+		}
+	}
+
+	return result, nil
 }
 
 func (s *foodService) ResolveFoodItems(ctx context.Context, names []string) ([]models.ReviewFoodItem, error) {
@@ -120,31 +136,50 @@ func (s *foodService) ResolveFoodItems(ctx context.Context, names []string) ([]m
 		return nil, apperr.BadRequest("names list cannot be empty", nil)
 	}
 
-	var result []models.ReviewFoodItem
+	// Batch-fetch all standard foods matching the requested names in one query.
+	standardFoods, err := s.foodRepo.FindStandardByNames(ctx, names)
+	if err != nil {
+		return nil, apperr.InternalServerError("failed to fetch standard foods by name", err)
+	}
+	standardByName := make(map[string]models.StandardFood, len(standardFoods))
+	for _, f := range standardFoods {
+		standardByName[f.Name] = *f
+	}
 
+	// Names not matched as standard foods are resolved as custom foods.
+	customNames := make([]string, 0)
+	seenCustom := make(map[string]bool)
 	for _, name := range names {
-		standardFood, err := s.foodRepo.FindStandardByName(ctx, name)
-		if err != nil {
-			return nil, apperr.InternalServerError("failed to fetch standard food by name", err)
+		if _, ok := standardByName[name]; ok {
+			continue
 		}
+		if seenCustom[name] {
+			continue
+		}
+		seenCustom[name] = true
+		customNames = append(customNames, name)
+	}
 
-		if standardFood != nil {
+	customByName, err := s.resolveCustomFoods(ctx, customNames)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]models.ReviewFoodItem, 0, len(names))
+	for _, name := range names {
+		if food, ok := standardByName[name]; ok {
 			result = append(result, models.ReviewFoodItem{
-				FoodID:   standardFood.ID.Hex(),
-				FoodName: standardFood.Name,
+				FoodID:   food.ID.Hex(),
+				FoodName: food.Name,
 				Type:     models.FoodTypeStandard,
 			})
 			continue
 		}
 
-		customFood, err := s.findOrCreateCustom(ctx, name)
-		if err != nil {
-			return nil, err
-		}
-
+		food := customByName[name]
 		result = append(result, models.ReviewFoodItem{
-			FoodID:   customFood.ID.Hex(),
-			FoodName: customFood.Name,
+			FoodID:   food.ID.Hex(),
+			FoodName: food.Name,
 			Type:     models.FoodTypeCustom,
 		})
 	}

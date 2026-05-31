@@ -16,10 +16,13 @@ type FoodRepository interface {
 	FindStandardByID(ctx context.Context, id primitive.ObjectID) (*models.StandardFood, error)
 	FindStandardByIDs(ctx context.Context, ids []primitive.ObjectID) ([]*models.StandardFood, error)
 	FindStandardByName(ctx context.Context, name string) (*models.StandardFood, error)
+	FindStandardByNames(ctx context.Context, names []string) ([]*models.StandardFood, error)
 	FindCustomByName(ctx context.Context, name string) (*models.CustomFood, error)
+	FindCustomByNames(ctx context.Context, names []string) ([]*models.CustomFood, error)
 
 	CreateStandards(ctx context.Context, foods []interface{}) error
 	CreateCustom(ctx context.Context, food models.CustomFood) error
+	CreateCustoms(ctx context.Context, foods []interface{}) error
 
 	GetRandomStandards(ctx context.Context, speed string, categories []string, count int) ([]models.StandardFood, error)
 
@@ -31,6 +34,7 @@ type FoodRepository interface {
 
 	IncrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error
 	DecrementLikeCount(ctx context.Context, foodID primitive.ObjectID) error
+	DecrementLikeCounts(ctx context.Context, foodIDs []primitive.ObjectID) error
 }
 
 type foodRepository struct {
@@ -88,6 +92,25 @@ func (r *foodRepository) FindStandardByName(ctx context.Context, name string) (*
 	return &food, nil
 }
 
+func (r *foodRepository) FindStandardByNames(ctx context.Context, names []string) ([]*models.StandardFood, error) {
+	if len(names) == 0 {
+		return []*models.StandardFood{}, nil
+	}
+
+	cursor, err := r.standardFoodCollection.Find(ctx, bson.M{"name": bson.M{"$in": names}})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var foods []*models.StandardFood
+	if err := cursor.All(ctx, &foods); err != nil {
+		return nil, err
+	}
+
+	return foods, nil
+}
+
 func (r *foodRepository) FindCustomByName(ctx context.Context, name string) (*models.CustomFood, error) {
 	var food models.CustomFood
 	err := r.customFoodCollection.FindOne(ctx, bson.M{"name": name}).Decode(&food)
@@ -100,6 +123,25 @@ func (r *foodRepository) FindCustomByName(ctx context.Context, name string) (*mo
 	return &food, nil
 }
 
+func (r *foodRepository) FindCustomByNames(ctx context.Context, names []string) ([]*models.CustomFood, error) {
+	if len(names) == 0 {
+		return []*models.CustomFood{}, nil
+	}
+
+	cursor, err := r.customFoodCollection.Find(ctx, bson.M{"name": bson.M{"$in": names}})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var foods []*models.CustomFood
+	if err := cursor.All(ctx, &foods); err != nil {
+		return nil, err
+	}
+
+	return foods, nil
+}
+
 func (r *foodRepository) CreateStandards(ctx context.Context, foods []interface{}) error {
 	_, err := r.standardFoodCollection.InsertMany(ctx, foods)
 	return err
@@ -107,6 +149,11 @@ func (r *foodRepository) CreateStandards(ctx context.Context, foods []interface{
 
 func (r *foodRepository) CreateCustom(ctx context.Context, food models.CustomFood) error {
 	_, err := r.customFoodCollection.InsertOne(ctx, food)
+	return err
+}
+
+func (r *foodRepository) CreateCustoms(ctx context.Context, foods []interface{}) error {
+	_, err := r.customFoodCollection.InsertMany(ctx, foods)
 	return err
 }
 
@@ -221,4 +268,17 @@ func (r *foodRepository) DecrementLikeCount(ctx context.Context, foodID primitiv
 		return errors.New("food not found or like count is already zero")
 	}
 	return nil
+}
+
+func (r *foodRepository) DecrementLikeCounts(ctx context.Context, foodIDs []primitive.ObjectID) error {
+	if len(foodIDs) == 0 {
+		return nil
+	}
+
+	_, err := r.standardFoodCollection.UpdateMany(
+		ctx,
+		bson.M{"_id": bson.M{"$in": foodIDs}, "like_count": bson.M{"$gt": 0}},
+		bson.M{"$inc": bson.M{"like_count": -1}},
+	)
+	return err
 }
